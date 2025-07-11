@@ -4,7 +4,7 @@ import Button from 'components/ui/Button';
 import Input from 'components/ui/Input';
 import Icon from 'components/AppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
-import { registerUser } from '../../../services/api'; // <--- THIS LINE IS CRUCIAL!
+import { registerUser } from '../../../services/api';
 
 
 const AuthForm = ({ mode, onForgotPassword }) => {
@@ -211,80 +211,6 @@ const AuthForm = ({ mode, onForgotPassword }) => {
     }));
   };
 
-  // const handleInputChange = (e) => {
-  //   const { name, value, type, checked } = e.target;
-    
-  //   // Special handling for role change
-  //   if (name === 'role') {
-  //     setFormData(prev => ({
-  //       ...prev,
-  //       [name]: value
-  //     }));
-  //     return;
-  //   }
-    
-  //   // For all other fields
-  //   setFormData(prev => ({
-  //     ...prev,
-  //     [name]: type === 'checkbox' ? checked : value
-  //   }));
-    
-  //   if (errors[name]) {
-  //     setErrors(prev => ({ ...prev, [name]: '' }));
-  //   }
-  // };
-
-  // const validateForm = () => {
-  //   const newErrors = {};
-    
-  //   if (!formData.email) {
-  //     newErrors.email = 'Email is required';
-  //   } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-  //     newErrors.email = 'Please enter a valid email address';
-  //   }
-
-  //   if (!formData.password) {
-  //     newErrors.password = 'Password is required';
-  //   } else if (formData.password.length < 6) {
-  //     newErrors.password = 'Password must be at least 6 characters';
-  //   }
-
-  //   if (mode === 'register') {
-  //     if (!formData.firstName) {
-  //       newErrors.firstName = 'First name is required';
-  //     }
-  //     if (!formData.lastName) {
-  //       newErrors.lastName = 'Last name is required';
-  //     }
-      
-  //     // Phone validation with Tanzanian pattern
-  //     if (!formData.phone) {
-  //       newErrors.phone = 'Phone number is required';
-  //     } else if (!validateTzPhone(formData.phone)) {
-  //       newErrors.phone = 'Invalid phone number. Format: 07XX XXX XXX or 06XX XXX XXX';
-  //     }
-      
-  //     // WhatsApp number validation for brokers
-  //     if (formData.role === 'broker') {
-  //       if (!formData.whatsappNumber) {
-  //         newErrors.whatsappNumber = 'WhatsApp number is required for brokers';
-  //       } else if (!validateTzPhone(formData.whatsappNumber)) {
-  //         newErrors.whatsappNumber = 'Invalid WhatsApp number. Format: 07XX XXX XXX or 06XX XXX XXX';
-  //       }
-  //     }
-  //       // Password confirmation
-  //     if (!formData.confirmPassword) {
-  //       newErrors.confirmPassword = 'Please confirm your password';
-  //     } else if (formData.password !== formData.confirmPassword) {
-  //       newErrors.confirmPassword = 'Passwords do not match';
-  //     }
-      
-  //   }
-
-  //   setErrors(newErrors);
-  //   return Object.keys(newErrors).length === 0;
-  // };
-
 const validateForm = () => {
     const newErrors = {};
 
@@ -333,85 +259,7 @@ const validateForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-
-
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-    
-  //   if (!validateForm()) return;
-
-  //   setLoading(true);
-  //   setErrors({});
-    
-  //     try {
-  //       if (mode === 'login') {
-  //         // Pass navigate to the login function
-  //         const success = await login(
-  //           formData.email, 
-  //           formData.password,
-  //           formData.rememberMe,
-  //           navigate
-  //         );
-
-  //         if (!success) {
-  //           setErrors({ 
-  //             submit: 'Invalid email or password. Please try again.' 
-  //           });
-  //         }
-  //     } else {
-  //     const cleanPhone = formData.phone.replace(/\s/g, '');
-  //     const cleanWhatsapp = formData.whatsappNumber.replace(/\s/g, '');
-      
-  //     const response = await fetch('/api/auth/register/', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({
-  //         firstName: formData.firstName,
-  //         lastName: formData.lastName,
-  //         email: formData.email,
-  //         password: formData.password,
-  //         phone: cleanPhone,
-  //         whatsappNumber: cleanWhatsapp,
-  //         role: formData.role
-  //       })
-  //     });
-
-  //     const data = await response.json();
-
-  //     if (!response.ok) {
-  //       // Handle backend validation errors
-  //       const backendErrors = {};
-  //       for (const [field, message] of Object.entries(data)) {
-  //         // Map backend field names to frontend names
-  //         const frontendField = 
-  //           field === 'whatsapp_number' ? 'whatsappNumber' : 
-  //           field === 'first_name' ? 'firstName' : 
-  //           field === 'last_name' ? 'lastName' : field;
-            
-  //         backendErrors[frontendField] = Array.isArray(message) ? message[0] : message;
-  //       }
-        
-  //     setErrors(backendErrors);
-  //       return;
-  //     }
-
-  //     setErrors({ 
-  //       success: 'Registration successful!' 
-  //     });
-  //     }
-  //     } catch (error) {
-  //       setErrors({ 
-  //         submit: 'Registration failed. Please check your details and try again.'
-  //       });
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-
-
-  // propms-frontend/src/AuthForm.jsx
-
-// ... (existing code) ...
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
