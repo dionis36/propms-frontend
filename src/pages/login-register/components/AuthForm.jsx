@@ -4,6 +4,8 @@ import Button from 'components/ui/Button';
 import Input from 'components/ui/Input';
 import Icon from 'components/AppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
+import { registerUser } from '../../../services/api'; // <--- THIS LINE IS CRUCIAL!
+
 
 const AuthForm = ({ mode, onForgotPassword }) => {
   const { login } = useAuth();
@@ -15,14 +17,18 @@ const AuthForm = ({ mode, onForgotPassword }) => {
     lastName: '',
     phone: '',
     whatsappNumber: '',
-    role: 'tenant',
+    role: 'TENANT',
     rememberMe: false
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
-  
+  const [fieldErrors, setFieldErrors] = useState({}); // <--- NEW STATE: For backend field-specific errors
+
+
+
+
   const phoneInputRef = useRef(null);
   const whatsappInputRef = useRef(null);
 
@@ -174,32 +180,114 @@ const AuthForm = ({ mode, onForgotPassword }) => {
     return /^(06|07)\d{8}$/.test(digits);
   };
 
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    // Special handling for role change
+
+    // Clear specific field error when user starts typing again
+    if (fieldErrors[name]) { // <--- NEW
+      setFieldErrors(prevErrors => { // <--- NEW
+        const newErrors = { ...prevErrors }; // <--- NEW
+        delete newErrors[name]; // <--- NEW
+        return newErrors; // <--- NEW
+      }); // <--- NEW
+    }
+    // Clear general errors on input change
+    setErrors({}); // <--- MODIFIED
+
+    // Special handling for role change: Convert to UPPERCASE for backend consistency
     if (name === 'role') {
       setFormData(prev => ({
         ...prev,
-        [name]: value
+        [name]: value.toUpperCase() // <--- MODIFIED: Convert to uppercase
       }));
       return;
     }
-    
+
     // For all other fields
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-    
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
+  // const handleInputChange = (e) => {
+  //   const { name, value, type, checked } = e.target;
     
+  //   // Special handling for role change
+  //   if (name === 'role') {
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       [name]: value
+  //     }));
+  //     return;
+  //   }
+    
+  //   // For all other fields
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     [name]: type === 'checkbox' ? checked : value
+  //   }));
+    
+  //   if (errors[name]) {
+  //     setErrors(prev => ({ ...prev, [name]: '' }));
+  //   }
+  // };
+
+  // const validateForm = () => {
+  //   const newErrors = {};
+    
+  //   if (!formData.email) {
+  //     newErrors.email = 'Email is required';
+  //   } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+  //     newErrors.email = 'Please enter a valid email address';
+  //   }
+
+  //   if (!formData.password) {
+  //     newErrors.password = 'Password is required';
+  //   } else if (formData.password.length < 6) {
+  //     newErrors.password = 'Password must be at least 6 characters';
+  //   }
+
+  //   if (mode === 'register') {
+  //     if (!formData.firstName) {
+  //       newErrors.firstName = 'First name is required';
+  //     }
+  //     if (!formData.lastName) {
+  //       newErrors.lastName = 'Last name is required';
+  //     }
+      
+  //     // Phone validation with Tanzanian pattern
+  //     if (!formData.phone) {
+  //       newErrors.phone = 'Phone number is required';
+  //     } else if (!validateTzPhone(formData.phone)) {
+  //       newErrors.phone = 'Invalid phone number. Format: 07XX XXX XXX or 06XX XXX XXX';
+  //     }
+      
+  //     // WhatsApp number validation for brokers
+  //     if (formData.role === 'broker') {
+  //       if (!formData.whatsappNumber) {
+  //         newErrors.whatsappNumber = 'WhatsApp number is required for brokers';
+  //       } else if (!validateTzPhone(formData.whatsappNumber)) {
+  //         newErrors.whatsappNumber = 'Invalid WhatsApp number. Format: 07XX XXX XXX or 06XX XXX XXX';
+  //       }
+  //     }
+  //       // Password confirmation
+  //     if (!formData.confirmPassword) {
+  //       newErrors.confirmPassword = 'Please confirm your password';
+  //     } else if (formData.password !== formData.confirmPassword) {
+  //       newErrors.confirmPassword = 'Passwords do not match';
+  //     }
+      
+  //   }
+
+  //   setErrors(newErrors);
+  //   return Object.keys(newErrors).length === 0;
+  // };
+
+const validateForm = () => {
+    const newErrors = {};
+
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -219,34 +307,33 @@ const AuthForm = ({ mode, onForgotPassword }) => {
       if (!formData.lastName) {
         newErrors.lastName = 'Last name is required';
       }
-      
-      // Phone validation with Tanzanian pattern
+
       if (!formData.phone) {
         newErrors.phone = 'Phone number is required';
       } else if (!validateTzPhone(formData.phone)) {
         newErrors.phone = 'Invalid phone number. Format: 07XX XXX XXX or 06XX XXX XXX';
       }
-      
-      // WhatsApp number validation for brokers
-      if (formData.role === 'broker') {
+
+      // WhatsApp number validation for brokers (check against UPPERCASE role)
+      if (formData.role === 'BROKER') { // <--- MODIFIED: Check against UPPERCASE
         if (!formData.whatsappNumber) {
           newErrors.whatsappNumber = 'WhatsApp number is required for brokers';
         } else if (!validateTzPhone(formData.whatsappNumber)) {
           newErrors.whatsappNumber = 'Invalid WhatsApp number. Format: 07XX XXX XXX or 06XX XXX XXX';
         }
       }
-        // Password confirmation
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = 'Please confirm your password';
       } else if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
-      
     }
 
-    setErrors(newErrors);
+    setFieldErrors(newErrors); // <--- MODIFIED: Use setFieldErrors for client-side validation
     return Object.keys(newErrors).length === 0;
   };
+
+
 
   // const handleSubmit = async (e) => {
   //   e.preventDefault();
@@ -256,147 +343,180 @@ const AuthForm = ({ mode, onForgotPassword }) => {
   //   setLoading(true);
   //   setErrors({});
     
-  //   try {
-  //     if (mode === 'login') {
-  //       // Pass navigate to the login function
-  //       const success = await login(
-  //         formData.email, 
-  //         formData.password,
-  //         formData.rememberMe,
-  //         navigate
-  //       );
-        
-  //       if (!success) {
-  //         setErrors({ 
-  //           submit: 'Invalid email or password. Please try again.' 
-  //         });
-  //       }
+  //     try {
+  //       if (mode === 'login') {
+  //         // Pass navigate to the login function
+  //         const success = await login(
+  //           formData.email, 
+  //           formData.password,
+  //           formData.rememberMe,
+  //           navigate
+  //         );
+
+  //         if (!success) {
+  //           setErrors({ 
+  //             submit: 'Invalid email or password. Please try again.' 
+  //           });
+  //         }
   //     } else {
-  //       // For registration, clean phone numbers before saving
-  //       const cleanPhone = formData.phone.replace(/\s/g, '');
-  //       const cleanWhatsapp = formData.whatsappNumber.replace(/\s/g, '');
-        
-  //       // Mock registration logic remains unchanged
-  //       await new Promise(resolve => setTimeout(resolve, 1500));
-        
-  //       // Show success message
-  //       setErrors({ success: 'Registration successful! Please check your email to verify your account.' });
-        
-  //       // In a real app, you would send cleanPhone/cleanWhatsapp to the backend
-  //       console.log('Phone:', cleanPhone);
-  //       console.log('WhatsApp:', cleanWhatsapp);
-  //     }
-  //   } catch (error) {
-  //     setErrors({
-  //       submit: 'Invalid email or password. Please try again.'
+  //     const cleanPhone = formData.phone.replace(/\s/g, '');
+  //     const cleanWhatsapp = formData.whatsappNumber.replace(/\s/g, '');
+      
+  //     const response = await fetch('/api/auth/register/', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({
+  //         firstName: formData.firstName,
+  //         lastName: formData.lastName,
+  //         email: formData.email,
+  //         password: formData.password,
+  //         phone: cleanPhone,
+  //         whatsappNumber: cleanWhatsapp,
+  //         role: formData.role
+  //       })
   //     });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+
+  //     const data = await response.json();
+
+  //     if (!response.ok) {
+  //       // Handle backend validation errors
+  //       const backendErrors = {};
+  //       for (const [field, message] of Object.entries(data)) {
+  //         // Map backend field names to frontend names
+  //         const frontendField = 
+  //           field === 'whatsapp_number' ? 'whatsappNumber' : 
+  //           field === 'first_name' ? 'firstName' : 
+  //           field === 'last_name' ? 'lastName' : field;
+            
+  //         backendErrors[frontendField] = Array.isArray(message) ? message[0] : message;
+  //       }
+        
+  //     setErrors(backendErrors);
+  //       return;
+  //     }
+
+  //     setErrors({ 
+  //       success: 'Registration successful!' 
+  //     });
+  //     }
+  //     } catch (error) {
+  //       setErrors({ 
+  //         submit: 'Registration failed. Please check your details and try again.'
+  //       });
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
 
+  // propms-frontend/src/AuthForm.jsx
+
+// ... (existing code) ...
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
-    setErrors({});
-    
-      try {
-        if (mode === 'login') {
-          // Pass navigate to the login function
-          const success = await login(
-            formData.email, 
-            formData.password,
-            formData.rememberMe,
-            navigate
-          );
+    setErrors({}); // Clear general errors
+    setFieldErrors({}); // <--- NEW: Clear specific field errors
 
-          if (!success) {
-            setErrors({ 
-              submit: 'Invalid email or password. Please try again.' 
-            });
-          }
-      } else {
-      const cleanPhone = formData.phone.replace(/\s/g, '');
-      const cleanWhatsapp = formData.whatsappNumber.replace(/\s/g, '');
-      
-      const response = await fetch('/api/auth/register/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    try {
+      if (mode === 'login') {
+        // ... (existing login logic, assuming it uses useAuth().login) ...
+        const success = await login(
+          formData.email,
+          formData.password,
+          formData.rememberMe,
+          navigate
+        );
+
+        if (!success) {
+          setErrors({
+            submit: 'Invalid email or password. Please try again.'
+          });
+        }
+      } else { // mode === 'register'
+        // Prepare data for backend (camelCase to snake_case mapping for phone/whatsapp, uppercase for role)
+        const payload = {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
           password: formData.password,
-          phone: cleanPhone,
-          whatsappNumber: cleanWhatsapp,
-          role: formData.role
-        })
-      });
+          phone: formData.phone.replace(/\s/g, ''), // Clean and send as 'phone'
+          whatsappNumber: formData.whatsappNumber.replace(/\s/g, ''), // Clean and send as 'whatsappNumber'
+          role: formData.role // Already uppercase from handleInputChange
+        };
 
-      const data = await response.json();
+        // Call the new registerUser API function
+        const responseData = await registerUser(payload); // <--- MODIFIED: Use registerUser
 
-      if (!response.ok) {
-        // Handle backend validation errors
+        setErrors({
+          success: responseData.message || 'Registration successful!'
+        });
+        // Optionally, clear form after successful registration
+        setFormData({
+          email: '',
+          password: '',
+          confirmPassword: '',
+          firstName: '',
+          lastName: '',
+          phone: '',
+          whatsappNumber: '',
+          role: 'TENANT', // Reset to default uppercase
+          rememberMe: false
+        });
+        // You might want to redirect to login page here after success
+        // navigate('/login');
+      }
+    } catch (error) {
+      console.error("AuthForm Submission Error:", error);
+      if (error.status === 400 && error.data) {
+        // Backend validation errors (e.g., email/phone exists, invalid format)
         const backendErrors = {};
-        for (const [field, message] of Object.entries(data)) {
-          // Map backend field names to frontend names
-          const frontendField = 
-            field === 'whatsapp_number' ? 'whatsappNumber' : 
-            field === 'first_name' ? 'firstName' : 
-            field === 'last_name' ? 'lastName' : field;
-            
+        for (const [field, message] of Object.entries(error.data)) {
+          // Map backend field names (snake_case) to frontend names (camelCase)
+          let frontendField = field;
+          if (field === 'first_name') frontendField = 'firstName';
+          else if (field === 'last_name') frontendField = 'lastName';
+          else if (field === 'phone_number') frontendField = 'phone'; // Backend expects phone_number
+          else if (field === 'whatsapp_number') frontendField = 'whatsappNumber'; // Backend expects whatsapp_number
+
           backendErrors[frontendField] = Array.isArray(message) ? message[0] : message;
         }
-        
-      setErrors(backendErrors);
-        return;
-      }
-
-      setErrors({ 
-        success: 'Registration successful! Please check your email to verify your account.' 
-      });
-      }
-      } catch (error) {
-        setErrors({ 
-          submit: 'Registration failed. Please check your details and try again.'
+        setFieldErrors(backendErrors); // <--- NEW: Set specific field errors
+        if (error.data.detail) {
+          setErrors({ submit: error.data.detail }); // General error if backend sends 'detail'
+        } else if (Object.keys(error.data).length > 0) {
+            setErrors({ submit: 'Please correct the errors in the form.' }); // Generic message for field errors
+        } else {
+            setErrors({ submit: 'Registration failed. An unknown error occurred.' }); // Fallback
+        }
+      } else {
+        // Network errors or other unexpected errors
+        setErrors({
+          submit: error.message || 'Registration failed. Please check your details and try again.'
         });
-      } finally {
-        setLoading(false);
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+// ... (rest of the component) ...
 
 
 
 
 
+// propms-frontend/src/AuthForm.jsx
 
+// ... (existing code) ...
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Success Message */}
-      {errors.success && (
-        <div className="p-4 bg-success-100 border border-success-500 rounded-md">
-          <div className="flex items-center">
-            <Icon name="CheckCircle" size={20} className="text-success mr-3" />
-            <p className="text-sm text-success">{errors.success}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {errors.submit && (
-        <div className="p-4 bg-error-100 border border-error-500 rounded-md">
-          <div className="flex items-center">
-            <Icon name="AlertCircle" size={20} className="text-error mr-3" />
-            <p className="text-sm text-error">{errors.submit}</p>
-          </div>
-        </div>
-      )}
+      {/* ... (Success Message and General Submit Error Message remain the same) ... */}
 
       {/* Registration Fields */}
       {mode === 'register' && (
@@ -412,11 +532,11 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               value={formData.firstName}
               onChange={handleInputChange}
               placeholder="Enter your first name"
-              className={errors.firstName ? 'border-error-500 focus:ring-error-500' : ''}
+              className={fieldErrors.firstName ? 'border-error-500 focus:ring-error-500' : ''} 
               disabled={loading}
             />
-            {errors.firstName && (
-              <p className="mt-1 text-sm text-error">{errors.firstName}</p>
+            {fieldErrors.firstName && ( 
+              <p className="mt-1 text-sm text-error">{fieldErrors.firstName}</p>
             )}
           </div>
           <div>
@@ -430,15 +550,14 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               value={formData.lastName}
               onChange={handleInputChange}
               placeholder="Enter your last name"
-              className={errors.lastName ? 'border-error-500 focus:ring-error-500' : ''}
+              className={fieldErrors.lastName ? 'border-error-500 focus:ring-error-500' : ''} 
               disabled={loading}
             />
-            {errors.lastName && (
-              <p className="mt-1 text-sm text-error">{errors.lastName}</p>
+            {fieldErrors.lastName && ( 
+              <p className="mt-1 text-sm text-error">{fieldErrors.lastName}</p>
             )}
           </div>
 
-          {/* Phone Number Field */}
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-text-primary mb-2">
               Phone Number
@@ -452,17 +571,17 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               onKeyDown={(e) => handlePhoneKeyDown(e, 'phone')}
               onPaste={(e) => handlePhonePaste(e, 'phone')}
               placeholder="07XX XXX XXX"
-              className={errors.phone ? 'border-error-500 focus:ring-error-500' : ''}
+              className={fieldErrors.phone ? 'border-error-500 focus:ring-error-500' : ''} 
               disabled={loading}
               ref={phoneInputRef}
             />
-            {errors.phone && (
-              <p className="mt-1 text-sm text-error">{errors.phone}</p>
+            {fieldErrors.phone && (
+              <p className="mt-1 text-sm text-error">{fieldErrors.phone}</p>
             )}
           </div>
 
           {/* WhatsApp Number Field for Brokers */}
-          {formData.role === 'broker' && (
+          {formData.role === 'BROKER' && ( 
             <div>
               <label htmlFor="whatsappNumber" className="block text-sm font-medium text-text-primary mb-2">
                 WhatsApp Number
@@ -476,12 +595,12 @@ const AuthForm = ({ mode, onForgotPassword }) => {
                 onKeyDown={(e) => handlePhoneKeyDown(e, 'whatsappNumber')}
                 onPaste={(e) => handlePhonePaste(e, 'whatsappNumber')}
                 placeholder="07XX XXX XXX"
-                className={errors.whatsappNumber ? 'border-error-500 focus:ring-error-500' : ''}
+                className={fieldErrors.whatsappNumber ? 'border-error-500 focus:ring-error-500' : ''} 
                 disabled={loading}
                 ref={whatsappInputRef}
               />
-              {errors.whatsappNumber && (
-                <p className="mt-1 text-sm text-error">{errors.whatsappNumber}</p>
+              {fieldErrors.whatsappNumber && ( 
+                <p className="mt-1 text-sm text-error">{fieldErrors.whatsappNumber}</p>
               )}
             </div>
           )}
@@ -500,11 +619,11 @@ const AuthForm = ({ mode, onForgotPassword }) => {
           value={formData.email}
           onChange={handleInputChange}
           placeholder="Enter your email"
-          className={errors.email ? 'border-error-500 focus:ring-error-500' : ''}
+          className={fieldErrors.email ? 'border-error-500 focus:ring-error-500' : ''} 
           disabled={loading}
         />
-        {errors.email && (
-          <p className="mt-1 text-sm text-error">{errors.email}</p>
+        {fieldErrors.email && (
+          <p className="mt-1 text-sm text-error">{fieldErrors.email}</p>
         )}
       </div>
 
@@ -521,7 +640,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
             value={formData.password}
             onChange={handleInputChange}
             placeholder="Enter your password"
-            className={`pr-10 ${errors.password ? 'border-error-500 focus:ring-error-500' : ''}`}
+            className={`pr-10 ${fieldErrors.password ? 'border-error-500 focus:ring-error-500' : ''}`} 
             disabled={loading}
           />
           <button
@@ -533,12 +652,12 @@ const AuthForm = ({ mode, onForgotPassword }) => {
             <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
           </button>
         </div>
-        {errors.password && (
-          <p className="mt-1 text-sm text-error">{errors.password}</p>
+        {fieldErrors.password && ( 
+          <p className="mt-1 text-sm text-error">{fieldErrors.password}</p>
         )}
       </div>
 
-      {/* After the password field */}
+      {/* Confirm Password Field */}
       {mode === 'register' && (
         <div>
           <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
@@ -552,7 +671,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               value={formData.confirmPassword}
               onChange={handleInputChange}
               placeholder="Confirm your password"
-              className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
+              className={`pr-10 ${fieldErrors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`} 
               disabled={loading}
             />
             <button
@@ -564,68 +683,11 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
             </button>
           </div>
-          {errors.confirmPassword && (
-            <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
+          {fieldErrors.confirmPassword && ( 
+            <p className="mt-1 text-sm text-error">{fieldErrors.confirmPassword}</p>
           )}
         </div>
       )}
-      {/* <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
-          Confirm Password
-        </label>
-        <div className="relative">
-          <Input
-            id="confirmPassword"
-            name="confirmPassword"
-            type={showPassword ? 'text' : 'password'}
-            value={formData.confirmPassword}
-            onChange={handleInputChange}
-            placeholder="Confirm your password"
-            className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
-            disabled={loading}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
-            disabled={loading}
-          >
-            <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
-          </button>
-        </div>
-        {errors.confirmPassword && (
-          <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
-        )}
-      </div> */}
-      {/* Confirm Password Field
-      <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
-          Confirm Password
-        </label>
-        <div className="relative">
-          <Input
-            id="confirmPassword"
-            name="confirmPassword"
-            type={showPassword ? 'text' : 'password'}
-            value={formData.confirmPassword}
-            onChange={handleInputChange}
-            placeholder="Confirm your password"
-            className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
-            disabled={loading}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
-            disabled={loading}
-          >
-            <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
-          </button>
-        </div>
-        {errors.confirmPassword && (
-          <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
-        )}
-      </div> */}
 
       {/* Registration Role Selection */}
       {mode === 'register' && (
@@ -638,14 +700,14 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               <Input
                 type="radio"
                 name="role"
-                value="tenant"
-                checked={formData.role === 'tenant'}
+                value="TENANT" 
+                checked={formData.role === 'TENANT'} 
                 onChange={handleInputChange}
                 className="sr-only"
                 disabled={loading}
               />
               <div className={`flex-1 p-3 rounded-md border-2 text-center transition-all ${
-                formData.role === 'tenant' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
+                formData.role === 'TENANT' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
               }`}>
                 <Icon name="User" size={20} className="mx-auto mb-1" />
                 <span className="text-sm font-medium">Tenant</span>
@@ -655,14 +717,14 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               <Input
                 type="radio"
                 name="role"
-                value="broker"
-                checked={formData.role === 'broker'}
+                value="BROKER" 
+                checked={formData.role === 'BROKER'} 
                 onChange={handleInputChange}
                 className="sr-only"
                 disabled={loading}
               />
               <div className={`flex-1 p-3 rounded-md border-2 text-center transition-all ${
-                formData.role === 'broker' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
+                formData.role === 'BROKER' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
               }`}>
                 <Icon name="Briefcase" size={20} className="mx-auto mb-1" />
                 <span className="text-sm font-medium">Broker</span>

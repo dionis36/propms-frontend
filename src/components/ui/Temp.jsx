@@ -1,366 +1,295 @@
-import React, { useState } from 'react';
-import Icon from '../../../components/AppIcon';
-import Input from '../../../components/ui/Input';
-
-const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }) => {
-  const [customAmenity, setCustomAmenity] = useState('');
-
-  const commonAmenities = [
-    'Air Conditioning', 'Heating', 'Dishwasher', 'Washer/Dryer',
-    'Parking', 'Garage', 'Balcony', 'Patio', 'Garden', 'Pool',
-    'Gym', 'Elevator', 'Fireplace', 'Hardwood Floors', 'Carpet',
-    'Tile Floors', 'Walk-in Closet', 'Storage', 'Pet Friendly'
-  ]; 
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    
-    // Clear error when user starts typing
-    if (errors?.[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleAmenityToggle = (amenity) => {
-    const currentAmenities = formData?.amenities || [];
-    const isSelected = currentAmenities.includes(amenity);
-    
-    setFormData(prev => ({
-      ...prev,
-      amenities: isSelected 
-        ? currentAmenities.filter(a => a !== amenity)
-        : [...currentAmenities, amenity]
-    }));
-  };
-
-  const addCustomAmenity = () => {
-    if (customAmenity.trim() && !(formData?.amenities || []).includes(customAmenity.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        amenities: [...(prev?.amenities || []), customAmenity.trim()]
-      }));
-      setCustomAmenity('');
-    }
-  };
-
-  const removeAmenity = (amenity) => {
-    setFormData(prev => ({
-      ...prev,
-      amenities: (prev?.amenities || []).filter(a => a !== amenity)
-    }));
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-          <Icon name="Settings" size={16} className="text-primary" />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Success Message */}
+      {errors.success && (
+        <div className="p-4 bg-success-100 border border-success-500 rounded-md">
+          <div className="flex items-center">
+            <Icon name="CheckCircle" size={20} className="text-success mr-3" />
+            <p className="text-sm text-success">{errors.success}</p>
+          </div>
         </div>
-        <h2 className="text-xl font-semibold text-text-primary">Property Specifications</h2>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Bedrooms */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Bedrooms *
-          </label>
-          <Input
-            type="number"
-            name="bedrooms"
-            value={formData?.bedrooms || ''}
-            onChange={handleInputChange}
-            placeholder="3"
-            min="0"
-            className={errors?.bedrooms ? 'border-error' : ''}
-          />
-          {errors?.bedrooms && (
-            <p className="text-error text-xs mt-1 flex items-center">
-              <Icon name="AlertCircle" size={12} className="mr-1" />
-              {errors.bedrooms}
-            </p>
+      {/* Error Message */}
+      {errors.submit && (
+        <div className="p-4 bg-error-100 border border-error-500 rounded-md">
+          <div className="flex items-center">
+            <Icon name="AlertCircle" size={20} className="text-error mr-3" />
+            <p className="text-sm text-error">{errors.submit}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Registration Fields */}
+      {mode === 'register' && (
+        <>
+          <div>
+            <label htmlFor="firstName" className="block text-sm font-medium text-text-primary mb-2">
+              First Name
+            </label>
+            <Input
+              id="firstName"
+              name="firstName"
+              type="text"
+              value={formData.firstName}
+              onChange={handleInputChange}
+              placeholder="Enter your first name"
+              className={errors.firstName ? 'border-error-500 focus:ring-error-500' : ''}
+              disabled={loading}
+            />
+            {errors.firstName && (
+              <p className="mt-1 text-sm text-error">{errors.firstName}</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-text-primary mb-2">
+              Last Name
+            </label>
+            <Input
+              id="lastName"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={handleInputChange}
+              placeholder="Enter your last name"
+              className={errors.lastName ? 'border-error-500 focus:ring-error-500' : ''}
+              disabled={loading}
+            />
+            {errors.lastName && (
+              <p className="mt-1 text-sm text-error">{errors.lastName}</p>
+            )}
+          </div>
+
+          {/* Phone Number Field */}
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-text-primary mb-2">
+              Phone Number
+            </label>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => handlePhoneChange(e, 'phone')}
+              onKeyDown={(e) => handlePhoneKeyDown(e, 'phone')}
+              onPaste={(e) => handlePhonePaste(e, 'phone')}
+              placeholder="07XX XXX XXX"
+              className={errors.phone ? 'border-error-500 focus:ring-error-500' : ''}
+              disabled={loading}
+              ref={phoneInputRef}
+            />
+            {errors.phone && (
+              <p className="mt-1 text-sm text-error">{errors.phone}</p>
+            )}
+          </div>
+
+          {/* WhatsApp Number Field for Brokers */}
+          {formData.role === 'broker' && (
+            <div>
+              <label htmlFor="whatsappNumber" className="block text-sm font-medium text-text-primary mb-2">
+                WhatsApp Number
+              </label>
+              <Input
+                id="whatsappNumber"
+                name="whatsappNumber"
+                type="tel"
+                value={formData.whatsappNumber}
+                onChange={(e) => handlePhoneChange(e, 'whatsappNumber')}
+                onKeyDown={(e) => handlePhoneKeyDown(e, 'whatsappNumber')}
+                onPaste={(e) => handlePhonePaste(e, 'whatsappNumber')}
+                placeholder="07XX XXX XXX"
+                className={errors.whatsappNumber ? 'border-error-500 focus:ring-error-500' : ''}
+                disabled={loading}
+                ref={whatsappInputRef}
+              />
+              {errors.whatsappNumber && (
+                <p className="mt-1 text-sm text-error">{errors.whatsappNumber}</p>
+              )}
+            </div>
           )}
-        </div>
+        </>
+      )}
 
-        {/* Bathrooms */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Bathrooms *
-          </label>
-          <Input
-            type="number"
-            name="bathrooms"
-            value={formData?.bathrooms || ''}
-            onChange={handleInputChange}
-            placeholder="2"
-            min="0"
-            step="0.5"
-            className={errors?.bathrooms ? 'border-error' : ''}
-          />
-          {errors?.bathrooms && (
-            <p className="text-error text-xs mt-1 flex items-center">
-              <Icon name="AlertCircle" size={12} className="mr-1" />
-              {errors.bathrooms}
-            </p>
-          )}
-        </div>
-
-        {/* Half Bathrooms */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Half Bathrooms
-          </label>
-          <Input
-            type="number"
-            name="halfBathrooms"
-            value={formData?.halfBathrooms || ''}
-            onChange={handleInputChange}
-            placeholder="1"
-            min="0"
-            className={errors?.halfBathrooms ? 'border-error' : ''}
-          />
-        </div>
-
-        {/* Lot Size */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Lot Size
-          </label>
-          <div className="relative">
-            <Input
-              type="number"
-              name="lotSize"
-              value={formData?.lotSize || ''}
-              onChange={handleInputChange}
-              placeholder="0.25"
-              step="0.01"
-              className={errors?.lotSize ? 'border-error' : ''}
-            />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <span className="text-text-secondary text-sm">acres</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Year Built */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Year Built
-          </label>
-          <Input
-            type="number"
-            name="yearBuilt"
-            value={formData?.yearBuilt || ''}
-            onChange={handleInputChange}
-            placeholder="2020"
-            min="1800"
-            max={new Date().getFullYear()}
-            className={errors?.yearBuilt ? 'border-error' : ''}
-          />
-        </div>
-
-        {/* Parking Spaces */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Parking Spaces
-          </label>
-          <Input
-            type="number"
-            name="parkingSpaces"
-            value={formData?.parkingSpaces || ''}
-            onChange={handleInputChange}
-            placeholder="2"
-            min="0"
-            className={errors?.parkingSpaces ? 'border-error' : ''}
-          />
-        </div>
-
-        {/* Stories */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Stories
-          </label>
-          <Input
-            type="number"
-            name="stories"
-            value={formData?.stories || ''}
-            onChange={handleInputChange}
-            placeholder="2"
-            min="1"
-            className={errors?.stories ? 'border-error' : ''}
-          />
-        </div>
-
-        {/* HOA Fee */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            HOA Fee (Monthly)
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-text-secondary text-sm">$</span>
-            </div>
-            <Input
-              type="number"
-              name="hoaFee"
-              value={formData?.hoaFee || ''}
-              onChange={handleInputChange}
-              placeholder="150"
-              min="0"
-              className={`pl-8 ${errors?.hoaFee ? 'border-error' : ''}`}
-            />
-          </div>
-        </div>
-
-        {/* Property Tax */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Property Tax (Annual)
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-text-secondary text-sm">$</span>
-            </div>
-            <Input
-              type="number"
-              name="propertyTax"
-              value={formData?.propertyTax || ''}
-              onChange={handleInputChange}
-              placeholder="5000"
-              min="0"
-              className={`pl-8 ${errors?.propertyTax ? 'border-error' : ''}`}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Amenities Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-text-primary">Amenities & Features</h3>
-        
-        {/* Common Amenities Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {commonAmenities.map(amenity => (
-            <button
-              key={amenity}
-              type="button"
-              onClick={() => handleAmenityToggle(amenity)}
-              className={`text-left p-3 rounded-lg border transition-all duration-200 ${
-                (formData?.amenities || []).includes(amenity)
-                  ? 'border-primary bg-primary-50 text-primary' :'border-border hover:border-primary hover:bg-primary-50 text-text-secondary hover:text-primary'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                  (formData?.amenities || []).includes(amenity)
-                    ? 'border-primary bg-primary' :'border-border'
-                }`}>
-                  {(formData?.amenities || []).includes(amenity) && (
-                    <Icon name="Check" size={12} className="text-white" />
-                  )}
-                </div>
-                <span className="text-sm font-medium">{amenity}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Amenity Input */}
-        <div className="flex space-x-2">
-          <Input
-            type="text"
-            value={customAmenity}
-            onChange={(e) => setCustomAmenity(e.target.value)}
-            placeholder="Add custom amenity..."
-            className="flex-1"
-            onKeyPress={(e) => e.key === 'Enter' && addCustomAmenity()}
-          />
-          <button
-            type="button"
-            onClick={addCustomAmenity}
-            className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors duration-200"
-          >
-            <Icon name="Plus" size={16} />
-          </button>
-        </div>
-
-        {/* Selected Custom Amenities */}
-        {(formData?.amenities || []).filter(amenity => !commonAmenities.includes(amenity)).length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-text-primary">Custom Amenities:</p>
-            <div className="flex flex-wrap gap-2">
-              {(formData?.amenities || [])
-                .filter(amenity => !commonAmenities.includes(amenity))
-                .map(amenity => (
-                  <span
-                    key={amenity}
-                    className="inline-flex items-center space-x-1 bg-primary-100 text-primary px-3 py-1 rounded-full text-sm"
-                  >
-                    <span>{amenity}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeAmenity(amenity)}
-                      className="text-primary hover:text-primary-700"
-                    >
-                      <Icon name="X" size={12} />
-                    </button>
-                  </span>
-                ))}
-            </div>
-          </div>
+      {/* Email Field */}
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-text-primary mb-2">
+          Email Address
+        </label>
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          value={formData.email}
+          onChange={handleInputChange}
+          placeholder="Enter your email"
+          className={errors.email ? 'border-error-500 focus:ring-error-500' : ''}
+          disabled={loading}
+        />
+        {errors.email && (
+          <p className="mt-1 text-sm text-error">{errors.email}</p>
         )}
       </div>
 
-      {/* Additional Features */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-text-primary">Additional Information</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Pet Policy */}
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              Pet Policy
-            </label>
-            <select
-              name="petPolicy"
-              value={formData?.petPolicy || ''}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 bg-background text-text-primary"
-            >
-              <option value="">Select pet policy</option>
-              <option value="allowed">Pets Allowed</option>
-              <option value="cats-only">Cats Only</option>
-              <option value="dogs-only">Dogs Only</option>
-              <option value="no-pets">No Pets</option>
-              <option value="case-by-case">Case by Case</option>
-            </select>
-          </div>
+      {/* Password Field */}
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-2">
+          Password
+        </label>
+        <div className="relative">
+          <Input
+            id="password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.password}
+            onChange={handleInputChange}
+            placeholder="Enter your password"
+            className={`pr-10 ${errors.password ? 'border-error-500 focus:ring-error-500' : ''}`}
+            disabled={loading}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
+            disabled={loading}
+          >
+            <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+          </button>
+        </div>
+        {errors.password && (
+          <p className="mt-1 text-sm text-error">{errors.password}</p>
+        )}
+      </div>
 
-          {/* Smoking Policy */}
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              Smoking Policy
-            </label>
-            <select
-              name="smokingPolicy"
-              value={formData?.smokingPolicy || ''}
+      {/* Confirm the password field */}
+      {mode === 'register' && (
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
+            Confirm Password
+          </label>
+          <div className="relative">
+            <Input
+              id="confirmPassword"
+              name="confirmPassword"
+              type={showPassword ? 'text' : 'password'}
+              value={formData.confirmPassword}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 bg-background text-text-primary"
+              placeholder="Confirm your password"
+              className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
+              disabled={loading}
             >
-              <option value="">Select smoking policy</option>
-              <option value="no-smoking">No Smoking</option>
-              <option value="outdoor-only">Outdoor Only</option>
-              <option value="allowed">Smoking Allowed</option>
-            </select>
+              <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
+          )}
+        </div>
+      )}
+      {/* <div>
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
+          Confirm Password
+        </label>
+        <div className="relative">
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.confirmPassword}
+            onChange={handleInputChange}
+            placeholder="Confirm your password"
+            className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
+            disabled={loading}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
+            disabled={loading}
+          >
+            <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+          </button>
+        </div>
+        {errors.confirmPassword && (
+          <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
+        )}
+      </div> */}
+      {/* Confirm Password Field
+      <div>
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
+          Confirm Password
+        </label>
+        <div className="relative">
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.confirmPassword}
+            onChange={handleInputChange}
+            placeholder="Confirm your password"
+            className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
+            disabled={loading}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
+            disabled={loading}
+          >
+            <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+          </button>
+        </div>
+        {errors.confirmPassword && (
+          <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
+        )}
+      </div> */}
+
+      {/* Registration Role Selection */}
+      {mode === 'register' && (
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-3">
+            Account Type
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="relative flex cursor-pointer">
+              <Input
+                type="radio"
+                name="role"
+                value="tenant"
+                checked={formData.role === 'tenant'}
+                onChange={handleInputChange}
+                className="sr-only"
+                disabled={loading}
+              />
+              <div className={`flex-1 p-3 rounded-md border-2 text-center transition-all ${
+                formData.role === 'tenant' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
+              }`}>
+                <Icon name="User" size={20} className="mx-auto mb-1" />
+                <span className="text-sm font-medium">Tenant</span>
+              </div>
+            </label>
+            <label className="relative flex cursor-pointer">
+              <Input
+                type="radio"
+                name="role"
+                value="broker"
+                checked={formData.role === 'broker'}
+                onChange={handleInputChange}
+                className="sr-only"
+                disabled={loading}
+              />
+              <div className={`flex-1 p-3 rounded-md border-2 text-center transition-all ${
+                formData.role === 'broker' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
+              }`}>
+                <Icon name="Briefcase" size={20} className="mx-auto mb-1" />
+                <span className="text-sm font-medium">Broker</span>
+              </div>
+            </label>
           </div>
         </div>
-      </div>
-    </div>
-  );
-};
-
-export default PropertySpecificationsForm;
+      )}
