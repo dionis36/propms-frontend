@@ -369,7 +369,7 @@ const userMenuItems = [
                     <span>Sign In</span>
                   </Link>
                   <Link
-                    to="/login-register?mode==register"
+                    to="/login-register?mode=register"
                     className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-text-primary hover:bg-secondary-100"
                   >
                     <Icon name="UserPlus" size={20} />

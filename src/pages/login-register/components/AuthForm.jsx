@@ -10,10 +10,11 @@ const AuthForm = ({ mode, onForgotPassword }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',  // Add this
     firstName: '',
     lastName: '',
     phone: '',
-    whatsappNumber: '',  // Added for brokers
+    whatsappNumber: '',
     role: 'tenant',
     rememberMe: false
   });
@@ -234,15 +235,67 @@ const AuthForm = ({ mode, onForgotPassword }) => {
           newErrors.whatsappNumber = 'Invalid WhatsApp number. Format: 07XX XXX XXX or 06XX XXX XXX';
         }
       }
-      
-      if (!formData.inviteCode) {
-        newErrors.inviteCode = 'Invite code is required';
+        // Password confirmation
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
       }
+      
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+    
+  //   if (!validateForm()) return;
+
+  //   setLoading(true);
+  //   setErrors({});
+    
+  //   try {
+  //     if (mode === 'login') {
+  //       // Pass navigate to the login function
+  //       const success = await login(
+  //         formData.email, 
+  //         formData.password,
+  //         formData.rememberMe,
+  //         navigate
+  //       );
+        
+  //       if (!success) {
+  //         setErrors({ 
+  //           submit: 'Invalid email or password. Please try again.' 
+  //         });
+  //       }
+  //     } else {
+  //       // For registration, clean phone numbers before saving
+  //       const cleanPhone = formData.phone.replace(/\s/g, '');
+  //       const cleanWhatsapp = formData.whatsappNumber.replace(/\s/g, '');
+        
+  //       // Mock registration logic remains unchanged
+  //       await new Promise(resolve => setTimeout(resolve, 1500));
+        
+  //       // Show success message
+  //       setErrors({ success: 'Registration successful! Please check your email to verify your account.' });
+        
+  //       // In a real app, you would send cleanPhone/cleanWhatsapp to the backend
+  //       console.log('Phone:', cleanPhone);
+  //       console.log('WhatsApp:', cleanWhatsapp);
+  //     }
+  //   } catch (error) {
+  //     setErrors({
+  //       submit: 'Invalid email or password. Please try again.'
+  //     });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -252,46 +305,76 @@ const AuthForm = ({ mode, onForgotPassword }) => {
     setLoading(true);
     setErrors({});
     
-    try {
-      if (mode === 'login') {
-        // Pass navigate to the login function
-        const success = await login(
-          formData.email, 
-          formData.password,
-          formData.rememberMe,
-          navigate
-        );
-        
-        if (!success) {
-          setErrors({ 
-            submit: 'Invalid email or password. Please try again.' 
-          });
-        }
+      try {
+        if (mode === 'login') {
+          // Pass navigate to the login function
+          const success = await login(
+            formData.email, 
+            formData.password,
+            formData.rememberMe,
+            navigate
+          );
+
+          if (!success) {
+            setErrors({ 
+              submit: 'Invalid email or password. Please try again.' 
+            });
+          }
       } else {
-        // For registration, clean phone numbers before saving
-        const cleanPhone = formData.phone.replace(/\s/g, '');
-        const cleanWhatsapp = formData.whatsappNumber.replace(/\s/g, '');
-        
-        // Mock registration logic remains unchanged
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Show success message
-        setErrors({ success: 'Registration successful! Please check your email to verify your account.' });
-        
-        // In a real app, you would send cleanPhone/cleanWhatsapp to the backend
-        console.log('Phone:', cleanPhone);
-        console.log('WhatsApp:', cleanWhatsapp);
-      }
-    } catch (error) {
-      setErrors({ 
-        submit: mode === 'login' 
-          ? 'Invalid email or password. Please try again.' 
-          : 'Registration failed. Please check your invite code and try again.' 
+      const cleanPhone = formData.phone.replace(/\s/g, '');
+      const cleanWhatsapp = formData.whatsappNumber.replace(/\s/g, '');
+      
+      const response = await fetch('/api/auth/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+          phone: cleanPhone,
+          whatsappNumber: cleanWhatsapp,
+          role: formData.role
+        })
       });
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle backend validation errors
+        const backendErrors = {};
+        for (const [field, message] of Object.entries(data)) {
+          // Map backend field names to frontend names
+          const frontendField = 
+            field === 'whatsapp_number' ? 'whatsappNumber' : 
+            field === 'first_name' ? 'firstName' : 
+            field === 'last_name' ? 'lastName' : field;
+            
+          backendErrors[frontendField] = Array.isArray(message) ? message[0] : message;
+        }
+        
+      setErrors(backendErrors);
+        return;
+      }
+
+      setErrors({ 
+        success: 'Registration successful! Please check your email to verify your account.' 
+      });
+      }
+      } catch (error) {
+        setErrors({ 
+          submit: 'Registration failed. Please check your details and try again.'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+
+
+
+
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -454,6 +537,66 @@ const AuthForm = ({ mode, onForgotPassword }) => {
           <p className="mt-1 text-sm text-error">{errors.password}</p>
         )}
       </div>
+
+      {/* After the password field */}
+      {mode === 'register' && (
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
+            Confirm Password
+          </label>
+          <div className="relative">
+            <Input
+              id="confirmPassword"
+              name="confirmPassword"
+              type={showPassword ? 'text' : 'password'}
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              placeholder="Confirm your password"
+              className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
+              disabled={loading}
+            >
+              <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
+          )}
+        </div>
+      )}
+      {/* <div>
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
+          Confirm Password
+        </label>
+        <div className="relative">
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.confirmPassword}
+            onChange={handleInputChange}
+            placeholder="Confirm your password"
+            className={`pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
+            disabled={loading}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary hover:text-text-primary"
+            disabled={loading}
+          >
+            <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+          </button>
+        </div>
+        {errors.confirmPassword && (
+          <p className="mt-1 text-sm text-error">{errors.confirmPassword}</p>
+        )}
+      </div> */}
       {/* Confirm Password Field
       <div>
         <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
