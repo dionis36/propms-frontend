@@ -92,7 +92,11 @@ const PropertyCreateEdit = () => {
     // Prepare location string
     const location = [
       formData.address,
-    ]
+      formData.city,
+      formData.state,
+      formData.country,
+      formData.zipCode
+    ].filter(Boolean).join(', ');
 
     return {
       title: formData.title,
@@ -114,7 +118,7 @@ const PropertyCreateEdit = () => {
       agent_name: currentUser.fullName,
       agent_email: currentUser.email,
       agent_phone_numbers: currentUser.phone,
-      whatsapp_number: currentUser.phone.replace(/\D/g, '')
+      whatsapp_url: `https://wa.me/${currentUser.phone.replace(/\D/g, '')}`
     };
   };
 
