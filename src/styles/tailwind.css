@@ -54,6 +54,7 @@
     --color-border-focus: #2563EB; /* Focus border color - blue-600 */
   }
 
+
   * {
     @apply border-border;
   }
