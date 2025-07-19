@@ -171,8 +171,6 @@ const LocationForm = ({ formData, setFormData, errors, setErrors }) => {
     setFormData(prev => ({
       ...prev,
       address: suggestion.display_name,
-      state: 'Dar es Salaam Region',
-      country: 'Tanzania',
       latitude: lat,
       longitude: lon
     }));
@@ -201,8 +199,6 @@ const LocationForm = ({ formData, setFormData, errors, setErrors }) => {
         setFormData(prev => ({
           ...prev,
           address: data.display_name,
-          state: 'Dar es Salaam Region',
-          country: 'Tanzania',
           latitude: lat,
           longitude: lon
         }));
@@ -268,8 +264,6 @@ const LocationForm = ({ formData, setFormData, errors, setErrors }) => {
             setFormData(prev => ({
               ...prev,
               address: data.display_name,
-              state: 'Dar es Salaam Region',
-              country: 'Tanzania',
               latitude: lat,
               longitude: lon
             }));
@@ -397,7 +391,7 @@ const LocationForm = ({ formData, setFormData, errors, setErrors }) => {
             <input
               type="text"
               name="state"
-              value="Dar es Salaam Region"
+              value="Dar es Salaam"
               readOnly
               className="w-full px-3 py-2 border rounded-md bg-gray-50 text-gray-700 border-gray-300"
             />

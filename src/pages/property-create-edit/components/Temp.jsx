@@ -1,111 +1,729 @@
-import React, { useState, useRef } from 'react';
-import Icon from '../../../components/AppIcon';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Icon from '../../components/AppIcon';
+import Header from '../../components/ui/Header';
+import Button from '../../components/ui/Button';
+import { Helmet } from 'react-helmet-async';
+import { useAuth } from '../../contexts/AuthContext';
+import { 
+  createProperty, 
+  updateProperty,
+  uploadPropertyMedia 
+} from '../../services/api';
 
-const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
-  // ... (existing code remains unchanged until the handleImageUpload function)
+// Component imports
+import ProgressIndicator from './components/ProgressIndicator';
+import PropertyDetailsForm from './components/PropertyDetailsForm';
+import LocationForm from './components/LocationForm';
+import MediaUploadForm from './components/MediaUploadForm';
+import PropertySpecificationsForm from './components/PropertySpecificationsForm';
+import ReviewForm from './components/ReviewForm';
 
-  const handleImageUpload = async (files) => {
-    const fileArray = Array.from(files);
-    const allErrors = [];
-    
-    // Validate quantity first
-    const quantityError = validateQuantity(fileArray, 'image');
-    if (quantityError) {
-      allErrors.push(quantityError);
-      updateErrors(allErrors);
-      return;
-    }
-    
-    // Validate each file
-    const validFiles = [];
-    for (const file of fileArray) {
-      const fileErrors = await validateFile(file, 'image');
-      if (fileErrors.length > 0) {
-        allErrors.push(...fileErrors.map(err => `${file.name}: ${err}`));
-      } else {
-        validFiles.push(file);
+const PropertyCreateEdit = () => {
+  const { currentUser } = useAuth();
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditing = Boolean(id);
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({});
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isDraft, setIsDraft] = useState(true);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [completedSteps, setCompletedSteps] = useState(new Set());
+
+  const steps = [
+    'Property Details',
+    'Location',
+    'Media Upload',
+    'Specifications',
+    'Review'
+  ];
+
+  // Add this near the top of your component
+  const DRAFT_KEY = `property_draft_${currentUser?.id || 'anonymous'}`;
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
+
+  // 1. Load draft on mount - place inside main useEffect
+  useEffect(() => {
+    if (isEditing && id) {
+      // Existing edit mode loading...
+    } else {
+      // Load draft only for new properties
+      const savedDraft = localStorage.getItem(DRAFT_KEY);
+      if (savedDraft) {
+        try {
+          const draftData = JSON.parse(savedDraft);
+          setFormData(draftData);
+          // Check which steps are completed based on loaded data
+          const completed = new Set();
+          if (validateStepData(1, draftData)) completed.add(1);
+          if (validateStepData(2, draftData)) completed.add(2);
+          if (validateStepData(4, draftData)) completed.add(4);
+          setCompletedSteps(completed);
+          console.log('📥 Loaded draft from localStorage:', draftData);
+        } catch (e) {
+          console.error('Draft parse error:', e);
+        }
       }
     }
-    
-    // If there are validation errors, show them and stop
-    if (allErrors.length > 0) {
-      updateErrors(allErrors);
-      return;
-    }
-    
-    // Create image objects for valid files
-    const newImages = validFiles.map(file => {
-      // Generate unique identifier
-      const uniqueId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  }, [isEditing, id]);
+
+  // 2. Save draft on change - new useEffect
+  useEffect(() => {
+    if (!isEditing || (isEditing && formData.id)) {
+      // Create a copy without File objects for localStorage
+      const draftForStorage = { ...formData };
+      if (draftForStorage.images) {
+        draftForStorage.images = draftForStorage.images.map(img => ({
+          name: img.name,
+          isPrimary: img.isPrimary,
+          // Don't save File objects to localStorage
+        }));
+      }
+      if (draftForStorage.videos) {
+        draftForStorage.videos = draftForStorage.videos.map(vid => ({
+          name: vid.name,
+          // Don't save File objects to localStorage
+        }));
+      }
+      delete draftForStorage.mediaFiles; // Remove raw files
       
-      return {
-        id: uniqueId,
-        file,
-        preview: URL.createObjectURL(file),
-        name: file.name,
-        size: file.size,
-        // Only set as primary if there are no existing images
-        isPrimary: images.length === 0
-      };
-    });
-    
-    setFormData(prev => ({
-      ...prev,
-      images: [...(prev?.images || []), ...newImages]
-    }));
-    
-    // Clear errors if upload successful
-    updateErrors([]);
-  };
-
-  // ... (existing code remains unchanged until the removeImage function)
-
-  const removeImage = (imageId) => {
-    const imageToRemove = images.find(img => img.id === imageId);
-    if (imageToRemove?.preview) {
-      URL.revokeObjectURL(imageToRemove.preview);
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftForStorage));
+      setLastSaved(new Date());
+      setHasUnsavedChanges(true);
+      console.log('💾 Auto-saved draft to localStorage');
     }
-    
-    const remainingImages = images.filter(img => img.id !== imageId);
-    
-    // If removed image was primary and there are remaining images,
-    // set the first remaining image as primary
-    if (imageToRemove?.isPrimary && remainingImages.length > 0) {
-      remainingImages[0].isPrimary = true;
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      images: remainingImages
-    }));
-  };
+  }, [formData]);
 
-  const setPrimaryImage = (imageId) => {
-    const updatedImages = images.map(img => ({
-      ...img,
-      // Reset all to false first
-      isPrimary: false,
-      // Add unique identifier to name only for primary image
-      name: img.isPrimary ? img.name.replace(' (Primary)', '') : img.name
-    }));
-    
-    // Find the image to set as primary and update it
-    const primaryIndex = updatedImages.findIndex(img => img.id === imageId);
-    if (primaryIndex !== -1) {
-      updatedImages[primaryIndex] = {
-        ...updatedImages[primaryIndex],
-        isPrimary: true,
-        name: `${updatedImages[primaryIndex].name} (Primary)`
-      };
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      images: updatedImages
-    }));
-  };
 
-  // ... (existing code remains unchanged after this point)
+  const preparePayload = () => {
+  const data = new FormData();
+
+  data.append('title', formData.title);
+  data.append('description', formData.description);
+  data.append('location', formData.address);
+  data.append('price', parseFloat(formData.price) || 0);
+  data.append('property_type', formData.propertyType.toUpperCase());
+  data.append('bedrooms', parseInt(formData.rooms) || 0);
+  data.append('bathrooms', parseInt(formData.bathrooms) || 0);
+  data.append('latitude', formData.latitude || '');
+  data.append('longitude', formData.longitude || '');
+  data.append('status', formData.status.toUpperCase());
+  data.append('available_from', formData.availableFrom || '');
+  data.append('location_notes', formData.locationNotes || '');
+
+  // Append amenities as a JSON string
+  data.append('amenities', JSON.stringify(formData.amenities?.map(a => a.toLowerCase()) || []));
+
+  // Append image files
+  (formData.images || []).forEach(file => {
+    data.append('image', file); // Django expects this as a multi-part list
+  });
+
+  // Append up to 3 video files
+  (formData.videos || []).slice(0, 3).forEach(file => {
+    data.append('video', file); // Django should receive `request.FILES.getlist("videos")`
+  });
+
+  return data;
 };
 
-export default MediaUploadForm;
+
+  // // Prepare payload according to required structure
+  // const preparePayload = () => {
+
+  //   return {
+  //     title: formData.title,
+  //     description: formData.description,
+  //     location: formData.address,
+  //     price: parseFloat(formData.price) || 0,
+  //     property_type: formData.propertyType.toUpperCase(),
+  //     bedrooms: parseInt(formData.rooms) || 0,
+  //     bathrooms: parseInt(formData.bathrooms) || 0,
+  //     latitude: formData.latitude || null,
+  //     longitude: formData.longitude || null,
+  //     amenities: formData.amenities?.map(a => a.toLowerCase()) || [],
+  //     status: formData.status.toUpperCase(),
+  //     available_from: formData.availableFrom || null,
+  //     location_notes: formData.locationNotes || '',
+  //     images: formData.images?.map(img => img.name) || [],
+  //     video: formData.videos?.[0]?.name || null,
+
+  //   };
+  // };
+
+  const autoSave = useCallback(async () => {
+    if (hasUnsavedChanges && Object.keys(formData).length > 0) {
+      try {
+        console.log('Auto-saving draft...', formData);
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      }
+    }
+  }, [formData, hasUnsavedChanges]);
+
+  useEffect(() => {
+    const interval = setInterval(autoSave, 30000);
+    return () => clearInterval(interval);
+  }, [autoSave]);
+
+  useEffect(() => {
+    if (isEditing && id) {
+      setIsLoading(true);
+      setTimeout(() => {
+        const mockData = {
+          title: 'Beautiful Downtown Condo',
+          price: 450000,
+          propertyType: 'Room',
+          status: 'Available',
+          description: 'A stunning downtown condominium with modern amenities...',
+          address: '123 Main Street',
+          // city: 'Dar es Salaam',
+          // state: 'Dar es Salaam',
+          rooms: 2,
+          bathrooms: 2,
+          longitude: 39.2026,
+          latitude: -6.7924,
+          amenities: ['Air Conditioning', 'Dishwasher', 'Parking'],
+          images: [],
+          videos: []
+        };
+        setFormData(mockData);
+        setIsDraft(false);
+        // Mark all steps as completed for editing mode
+        setCompletedSteps(new Set([1, 2, 3, 4]));
+        setIsLoading(false);
+      }, 1000);
+    }
+  }, [isEditing, id]);
+
+  useEffect(() => {
+    setHasUnsavedChanges(true);
+  }, [formData]);
+
+  // Enhanced validation function that doesn't set errors
+  const validateStepData = (step, data = formData) => {
+    switch (step) {
+      case 1:
+        return !!(
+          data?.title?.trim() &&
+          data?.price && data.price > 0 &&
+          data?.propertyType &&
+          data?.status &&
+          data?.description?.trim()
+        );
+      case 2:
+        return !!(
+          data?.address?.trim()
+          // data?.city?.trim() &&
+          // data?.state?.trim()
+        );
+      case 3:
+        // Media is optional, so always valid
+        return true;
+      case 4:
+        return !!(
+          data?.rooms && data.rooms >= 1 &&
+          data?.bathrooms && data.bathrooms >= 0
+        );
+      case 5:
+        // Review step is always accessible once previous steps are completed
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  const validateStep = (step) => {
+    const newErrors = {};
+    switch (step) {
+      case 1:
+        if (!formData?.title?.trim()) newErrors.title = 'Property title is required';
+        if (!formData?.price || formData.price <= 0) newErrors.price = 'Valid price is required';
+        if (!formData?.propertyType) newErrors.propertyType = 'Property type is required';
+        if (!formData?.status) newErrors.status = 'Property status is required';
+        if (!formData?.description?.trim()) newErrors.description = 'Description is required';
+        break;
+      case 2:
+        if (!formData?.address?.trim()) newErrors.address = 'Address is required';
+        // if (!formData?.city?.trim()) newErrors.city = 'City is required';
+        // if (!formData?.state?.trim()) newErrors.state = 'State is required';  
+        break;
+      case 4:
+        if (!formData?.rooms || formData.rooms < 1) newErrors.rooms = 'Valid number of rooms is required';
+        if (!formData?.bathrooms || formData.bathrooms < 0) newErrors.bathrooms = 'Valid number of bathrooms is required';
+        break;
+      default:
+        break;
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Check if a step is accessible
+  const isStepAccessible = (step) => {
+    if (step === 1) return true; // First step is always accessible
+    if (step === 3) return completedSteps.has(1) && completedSteps.has(2); // Media after basic info
+    if (step === 5) return completedSteps.has(1) && completedSteps.has(2) && completedSteps.has(4); // Review after all required steps
+    return completedSteps.has(step - 1); // Sequential access for other steps
+  };
+
+  const handleNextStep = () => {
+    if (validateStep(currentStep)) {
+      // Mark current step as completed
+      setCompletedSteps(prev => new Set([...prev, currentStep]));
+      setCurrentStep(prev => Math.min(prev + 1, steps.length));
+    }
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleStepEdit = (step) => {
+    if (isStepAccessible(step)) {
+      setCurrentStep(step);
+    } else {
+      // Show a toast or alert about completing previous steps
+      const missingSteps = [];
+      for (let i = 1; i < step; i++) {
+        if (!completedSteps.has(i) && i !== 3) { // Skip media step for required validation
+          missingSteps.push(steps[i - 1]);
+        }
+      }
+      alert(`Please complete the following steps first: ${missingSteps.join(', ')}`);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setIsLoading(true);
+    try {
+      console.log('Saving draft...', formData);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIsDraft(true);
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Save draft failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    // Validate all steps except media (step 3)
+    let isValid = true;
+    for (let step = 1; step <= 4; step++) {
+      if (step !== 3 && !validateStep(step)) {
+        isValid = false;
+        setCurrentStep(step);
+        break;
+      }
+    }
+    if (!isValid) return;
+    
+    setIsLoading(true);
+    setSubmitError(null);
+    
+    try {
+      // 1. Create/update property
+      const payload = preparePayload();
+      
+      console.group('🧪 API Request Debug');
+      console.log('Endpoint:', id ? 'PATCH /properties' : 'POST /properties');
+      console.log('Payload:', payload);
+      console.log('Current User:', currentUser);
+      console.groupEnd();
+
+      // Create/update property
+      const propertyData = id 
+        ? await updateProperty(id, payload)
+        : await createProperty(payload);
+      
+      console.log('✅ Property saved:', propertyData);
+      
+      // 2. Upload media if any exists
+      const mediaFiles = [];
+      if (formData.images?.length > 0) {
+        formData.images.forEach(img => {
+          if (img.file) {
+            mediaFiles.push({
+              file: img.file,
+              type: 'image',
+              name: img.name,
+              isPrimary: img.isPrimary
+            });
+          }
+        });
+      }
+      if (formData.videos?.length > 0) {
+        formData.videos.forEach(vid => {
+          if (vid.file) {
+            mediaFiles.push({
+              file: vid.file,
+              type: 'video',
+              name: vid.name
+            });
+          }
+        });
+      }
+      
+      if (mediaFiles.length > 0) {
+        console.log('📤 Uploading media files...', mediaFiles);
+        setIsUploadingMedia(true);
+        
+        await uploadPropertyMedia(propertyData.id, mediaFiles);
+        console.log('🖼️ Media upload complete');
+      }
+      
+      // Clear draft and redirect
+      localStorage.removeItem(DRAFT_KEY);
+      navigate(`/property/${propertyData.id}`);
+      
+    } catch (error) {
+      console.error('🚨 Publish error:', error);
+      setSubmitError(error.message || 'An error occurred during publishing');
+    } finally {
+      setIsLoading(false);
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?');
+      if (!confirmed) return;
+    }
+    navigate('/agent-dashboard');
+  };
+
+  const renderStepForm = () => {
+    switch (currentStep) {
+      case 1:
+        return <PropertyDetailsForm formData={formData} setFormData={setFormData} errors={errors} setErrors={setErrors} />;
+      case 2:
+        return <LocationForm formData={formData} setFormData={setFormData} errors={errors} setErrors={setErrors} />;
+      case 3:
+        return <MediaUploadForm formData={formData} setFormData={setFormData} errors={errors} setErrors={setErrors} />;
+      case 4:
+        return <PropertySpecificationsForm formData={formData} setFormData={setFormData} errors={errors} setErrors={setErrors} />;
+      case 5:
+        return <ReviewForm formData={formData} onEdit={handleStepEdit} />;
+      default:
+        return null;
+    }
+  };
+
+  const helmet = (
+    <Helmet>
+      <title>Create-Edit Property | EstateHub</title>
+      <meta name="description" content="Find your dream property with EstateHub." />
+    </Helmet>
+  );
+
+  if (isLoading && isEditing && !formData?.title) {
+    return (
+      <>
+      {helmet}
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="pt-16 lg:pt-18">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-text-secondary">Loading property data...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+    {helmet}
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      {/* Compact Progress Section */}
+      <div className="sticky top-16 lg:top-18 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="flex items-center justify-between gap-4">
+            {/* Compact Progress Indicator */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex items-center gap-1 sm:gap-2">
+                {steps.map((step, index) => (
+                  <div key={index + 1} className="flex items-center">
+                    <button
+                      onClick={() => handleStepEdit(index + 1)}
+                      disabled={!isStepAccessible(index + 1)}
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
+                        currentStep === index + 1
+                          ? 'bg-primary text-white shadow-md'
+                          : completedSteps.has(index + 1)
+                          ? 'bg-blue-600 text-white'
+                          : isStepAccessible(index + 1)
+                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer'
+                          : 'bg-border text-text-secondary cursor-not-allowed opacity-50'
+                      }`}
+                    >
+                      {completedSteps.has(index + 1) ? (
+                        <Icon name="Check" size={12} />
+                      ) : (
+                        index + 1
+                      )}
+                    </button>
+                    {index < steps.length - 1 && (
+                      <div className={`w-4 sm:w-6 h-0.5 mx-1 ${
+                        completedSteps.has(index + 1) ? 'bg-blue-600' : 'bg-border'
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="hidden sm:block text-sm text-text-secondary truncate">
+                Step {currentStep}: {steps[currentStep - 1]}
+              </div>
+            </div>
+            
+            {/* Draft Status Indicator */}
+            <div className="flex items-center gap-2 text-xs flex-shrink-0">
+              {lastSaved && (
+                <div className="flex items-center gap-1 text-text-secondary">
+                  <Icon name="Clock" size={12} />
+                  <span className="hidden lg:inline">Saved:</span>
+                  <span className="font-medium">{lastSaved.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+              )}
+              {hasUnsavedChanges && (
+                <div className="flex items-center gap-1 text-warning">
+                  <Icon name="AlertCircle" size={12} />
+                  <span className="hidden sm:inline">Unsaved</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="pt-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Compact Header Section */}
+          <div className="mb-4 lg:mb-6">
+            <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold text-text-primary font-heading leading-tight">
+              {isEditing ? 'Edit Property' : 'Create New Property'}
+            </h1>
+            <p className="text-text-secondary mt-1 text-sm">
+              {isEditing ? 'Update your property listing details' : 'Add a new property to your listings'}
+            </p>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 lg:gap-6 pb-6">
+            {/* Form Content - Takes full width on mobile/tablet, 3/4 on desktop */}
+            <div className="xl:col-span-3">
+              <div className="bg-surface rounded-xl shadow-elevation-1 p-4 sm:p-6">
+                {renderStepForm()}
+              </div>
+            </div>
+
+            {/* Compact Sidebar for desktop */}
+            <div className="hidden xl:block xl:col-span-1">
+              <div className="sticky top-24 space-y-4">
+                {/* Compact Step Navigation */}
+                <div className="bg-surface rounded-xl shadow-elevation-1 p-4">
+                  <h3 className="font-semibold text-text-primary text-sm mb-3">Navigation</h3>
+                  <div className="space-y-2">
+                    {steps.map((step, index) => (
+                      <button
+                        key={index + 1}
+                        onClick={() => handleStepEdit(index + 1)}
+                        disabled={!isStepAccessible(index + 1)}
+                        className={`w-full text-left p-2 rounded-lg transition-colors text-sm ${
+                          currentStep === index + 1
+                            ? 'bg-primary text-white shadow-md'
+                            : completedSteps.has(index + 1)
+                            ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                            : isStepAccessible(index + 1)
+                            ? 'bg-background hover:bg-blue-50 text-text-primary border border-transparent hover:border-blue-200'
+                            : 'bg-background/50 text-text-secondary cursor-not-allowed opacity-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ${
+                            currentStep === index + 1
+                              ? 'bg-white text-primary'
+                              : completedSteps.has(index + 1)
+                              ? 'bg-blue-600 text-white'
+                              : isStepAccessible(index + 1)
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-border text-text-secondary'
+                          }`}>
+                            {completedSteps.has(index + 1) ? (
+                              <Icon name="Check" size={10} />
+                            ) : (
+                              index + 1
+                            )}
+                          </div>
+                          <span className="text-xs font-medium truncate">{step}</span>
+                          {!isStepAccessible(index + 1) && (
+                            <Icon name="Lock" size={10} className="ml-auto opacity-50" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Compact Progress Summary */}
+                <div className="bg-surface rounded-xl shadow-elevation-1 p-4">
+                  <h3 className="font-semibold text-text-primary text-sm mb-3">Progress</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span>Completed:</span>
+                      <span className="font-medium">{completedSteps.size}/{steps.length}</span>
+                    </div>
+                    <div className="w-full bg-background rounded-full h-1.5">
+                      <div 
+                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${(completedSteps.size / steps.length) * 100}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-text-secondary">
+                      {Math.round((completedSteps.size / steps.length) * 100)}% Complete
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Bar - Static positioning, no fixed bottom on mobile */}
+          <div className="bg-surface rounded-xl shadow-elevation-1 p-4 mt-6">
+            <div className="flex items-center justify-between gap-3">
+              {/* Left Actions */}
+              <Button 
+                variant="outline" 
+                onClick={handleCancel} 
+                disabled={isLoading} 
+                iconName="X" 
+                size="sm"
+                className="px-3 py-2 text-sm"
+              >
+                Cancel
+              </Button>
+
+              {/* Right Actions */}
+              <div className="flex items-center gap-2">
+                {currentStep > 1 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePrevStep} 
+                    disabled={isLoading} 
+                    iconName="ChevronLeft" 
+                    size="sm"
+                    className="px-3 py-2 text-sm"
+                  >
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">Prev</span>
+                  </Button>
+                )}
+                {currentStep < steps.length ? (
+                  <Button
+                    variant="primary"
+                    onClick={handleNextStep}
+                    disabled={isLoading}
+                    iconName="ChevronRight"
+                    iconPosition="right"
+                    size="sm"
+                    className="px-3 py-2 text-sm"
+                  >
+                    <span className="hidden sm:inline">Next Step</span>
+                    <span className="sm:hidden">Next</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    onClick={handlePublish}
+                    disabled={isLoading || isUploadingMedia}
+                    iconName="Rocket"
+                    size="sm"
+                    loading={isLoading}
+                    className="px-3 py-2 text-sm relative"
+                  >
+                    {isUploadingMedia ? (
+                      <span className="flex items-center gap-2">
+                        <span className="animate-pulse">Uploading Media...</span>
+                        <span className="loader-dots"></span>
+                      </span>
+                    ) : isEditing ? (
+                      <>
+                        <span className="hidden sm:inline">Update Property</span>
+                        <span className="sm:hidden">Update</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">Publish Property</span>
+                        <span className="sm:hidden">Publish</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style jsx>{`
+      .loader-dots {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        position: relative;
+      }
+      
+      .loader-dots:before,
+      .loader-dots:after {
+        content: "";
+        position: absolute;
+        top: 0;
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: currentColor;
+        animation: loader-dots 1.4s infinite ease-in-out;
+      }
+      
+      .loader-dots:before {
+        left: -0.75rem;
+        animation-delay: -0.32s;
+      }
+      
+      .loader-dots:after {
+        left: 0.75rem;
+        animation-delay: 0.32s;
+      }
+      
+      @keyframes loader-dots {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+      }
+    `}</style>
+    </>
+  );
+};
+
+export default PropertyCreateEdit;
