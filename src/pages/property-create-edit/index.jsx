@@ -453,11 +453,11 @@ const uploadMedia = async (propertyId) => {
                       disabled={!isStepAccessible(index + 1)}
                       className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
                         currentStep === index + 1
-                          ? 'bg-primary text-white'
+                          ? 'bg-primary text-white shadow-md'
                           : completedSteps.has(index + 1)
-                          ? 'bg-primary/80 text-white'
+                          ? 'bg-blue-600 text-white'
                           : isStepAccessible(index + 1)
-                          ? 'bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer'
+                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer'
                           : 'bg-border text-text-secondary cursor-not-allowed opacity-50'
                       }`}
                     >
@@ -469,7 +469,7 @@ const uploadMedia = async (propertyId) => {
                     </button>
                     {index < steps.length - 1 && (
                       <div className={`w-4 sm:w-6 h-0.5 mx-1 ${
-                        completedSteps.has(index + 1) ? 'bg-primary/80' : 'bg-border'
+                        completedSteps.has(index + 1) ? 'bg-blue-600' : 'bg-border'
                       }`} />
                     )}
                   </div>
@@ -535,11 +535,11 @@ const uploadMedia = async (propertyId) => {
                         disabled={!isStepAccessible(index + 1)}
                         className={`w-full text-left p-2 rounded-lg transition-colors text-sm ${
                           currentStep === index + 1
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-white shadow-md'
                             : completedSteps.has(index + 1)
-                            ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                            ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
                             : isStepAccessible(index + 1)
-                            ? 'bg-background hover:bg-primary/5 text-text-primary'
+                            ? 'bg-background hover:bg-blue-50 text-text-primary border border-transparent hover:border-blue-200'
                             : 'bg-background/50 text-text-secondary cursor-not-allowed opacity-50'
                         }`}
                       >
@@ -548,9 +548,9 @@ const uploadMedia = async (propertyId) => {
                             currentStep === index + 1
                               ? 'bg-white text-primary'
                               : completedSteps.has(index + 1)
-                              ? 'bg-primary text-white'
+                              ? 'bg-blue-600 text-white'
                               : isStepAccessible(index + 1)
-                              ? 'bg-primary/20 text-primary'
+                              ? 'bg-blue-100 text-blue-700'
                               : 'bg-border text-text-secondary'
                           }`}>
                             {completedSteps.has(index + 1) ? (
@@ -579,7 +579,7 @@ const uploadMedia = async (propertyId) => {
                     </div>
                     <div className="w-full bg-background rounded-full h-1.5">
                       <div 
-                        className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${(completedSteps.size / steps.length) * 100}%` }}
                       ></div>
                     </div>
@@ -592,75 +592,70 @@ const uploadMedia = async (propertyId) => {
             </div>
           </div>
 
-          {/* Compact Action Bar - Fixed at bottom on mobile, inline on desktop */}
-          <div className="fixed bottom-0 left-0 right-0 xl:relative xl:bottom-auto bg-surface xl:bg-transparent border-t xl:border-t-0 border-border xl:rounded-xl xl:shadow-elevation-1 p-3 xl:p-4 z-30">
-            <div className="max-w-7xl mx-auto xl:mx-0">
-              <div className="flex items-center justify-between gap-3">
-                {/* Left Actions */}
-                <Button 
-                  variant="outline" 
-                  onClick={handleCancel} 
-                  disabled={isLoading} 
-                  iconName="X" 
-                  size="sm"
-                  className="px-3 py-2 text-sm"
-                >
-                  Cancel
-                </Button>
+          {/* Action Bar - Static positioning, no fixed bottom on mobile */}
+          <div className="bg-surface rounded-xl shadow-elevation-1 p-4 mt-6">
+            <div className="flex items-center justify-between gap-3">
+              {/* Left Actions */}
+              <Button 
+                variant="outline" 
+                onClick={handleCancel} 
+                disabled={isLoading} 
+                iconName="X" 
+                size="sm"
+                className="px-3 py-2 text-sm"
+              >
+                Cancel
+              </Button>
 
-                {/* Right Actions */}
-                <div className="flex items-center gap-2">
-                  {currentStep > 1 && (
-                    <Button 
-                      variant="outline" 
-                      onClick={handlePrevStep} 
-                      disabled={isLoading} 
-                      iconName="ChevronLeft" 
-                      size="sm"
-                      className="px-3 py-2 text-sm"
-                    >
-                      <span className="hidden sm:inline">Previous</span>
-                      <span className="sm:hidden">Prev</span>
-                    </Button>
-                  )}
-                  {currentStep < steps.length ? (
-                    <Button
-                      variant="primary"
-                      onClick={handleNextStep}
-                      disabled={isLoading}
-                      iconName="ChevronRight"
-                      iconPosition="right"
-                      size="sm"
-                      className="px-3 py-2 text-sm"
-                    >
-                      <span className="hidden sm:inline">Next Step</span>
-                      <span className="sm:hidden">Next</span>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      onClick={handlePublish}
-                      disabled={isLoading}
-                      iconName="Rocket"
-                      size="sm"
-                      loading={isLoading}
-                      className="px-3 py-2 text-sm"
-                    >
-                      <span className="hidden sm:inline">
-                        {isEditing ? 'Update Property' : 'Publish Property'}
-                      </span>
-                      <span className="sm:hidden">
-                        {isEditing ? 'Update' : 'Publish'}
-                      </span>
-                    </Button>
-                  )}
-                </div>
+              {/* Right Actions */}
+              <div className="flex items-center gap-2">
+                {currentStep > 1 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePrevStep} 
+                    disabled={isLoading} 
+                    iconName="ChevronLeft" 
+                    size="sm"
+                    className="px-3 py-2 text-sm"
+                  >
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">Prev</span>
+                  </Button>
+                )}
+                {currentStep < steps.length ? (
+                  <Button
+                    variant="primary"
+                    onClick={handleNextStep}
+                    disabled={isLoading}
+                    iconName="ChevronRight"
+                    iconPosition="right"
+                    size="sm"
+                    className="px-3 py-2 text-sm"
+                  >
+                    <span className="hidden sm:inline">Next Step</span>
+                    <span className="sm:hidden">Next</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    onClick={handlePublish}
+                    disabled={isLoading}
+                    iconName="Rocket"
+                    size="sm"
+                    loading={isLoading}
+                    className="px-3 py-2 text-sm"
+                  >
+                    <span className="hidden sm:inline">
+                      {isEditing ? 'Update Property' : 'Publish Property'}
+                    </span>
+                    <span className="sm:hidden">
+                      {isEditing ? 'Update' : 'Publish'}
+                    </span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
-
-          {/* Spacer for fixed bottom bar on mobile */}
-          <div className="h-16 xl:hidden"></div>
         </div>
       </div>
     </div>

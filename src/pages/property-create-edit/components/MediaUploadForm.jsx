@@ -216,14 +216,20 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
     }
     
     // Create image objects for valid files
-    const newImages = validFiles.map(file => ({
-      id: Date.now() + Math.random(),
-      file,
-      preview: URL.createObjectURL(file),
-      name: file.name,
-      size: file.size,
-      isPrimary: images.length === 0 // First image becomes primary
-    }));
+    const newImages = validFiles.map((file, index) => {
+      // Generate unique identifier
+      const uniqueId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      
+      return {
+        id: uniqueId,
+        file,
+        preview: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+        // Only set as primary if it's the first image in the batch AND there are no existing images
+        isPrimary: index === 0 && images.length === 0
+      };
+    });
     
     setFormData(prev => ({
       ...prev,
