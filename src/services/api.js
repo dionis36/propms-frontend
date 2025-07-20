@@ -305,3 +305,17 @@ export const createProperty = async (formData, token) => {
 //     return makeRequest(`${API_BASE}/api/property/${id}/`, 'PATCH', formData, token);
 // };
 
+
+// display property details
+export const getPropertyDetails = async (propertyId, token = null) => {
+  try {
+    // Use makeRequest for consistency
+    // The URL is constructed using API_BASE and the propertyId
+    // The method is 'GET', no data is sent in the body, and the token is passed
+    return await makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'GET', null, token);
+  } catch (error) {
+    console.error('Error fetching property details:', error);
+    // Re-throw the error so calling components can handle it
+    throw error;
+  }
+};

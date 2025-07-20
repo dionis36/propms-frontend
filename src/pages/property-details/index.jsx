@@ -5,75 +5,44 @@ import Header from '../../components/ui/Header';
 import Icon from '../../components/AppIcon';
 import UserAvatar from '../../components/ui/UserAvatar';
 import { Helmet } from 'react-helmet-async';
+import { getPropertyDetails } from '../../services/api'; // Import the API function
+
 
 // Import components
 import ImageGallery from './components/ImageGallery';
 import PropertyOverview from './components/PropertyOverview';
-import PropertyTabs from './components/PropertyTabs';
+// import PropertyTabs from './components/PropertyTabs';
+import PropertyInfo from './components/PropertyInfo';
 import ContactForm from './components/ContactForm';
 import SimilarProperties from './components/SimilarProperties';
 import LoadingState from './components/LoadingState';
+
 
 const PropertyDetails = () => {
   const [searchParams] = useSearchParams();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [showContactForm, setShowContactForm] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(null); // <-- Add this line
+
 
   const propertyId = searchParams.get('id');
 
-  // Mock property data - in real app this would come from API
-  const mockProperty = {
-    id: 1,
-    title: "Modern Downtown Apartment",
-    price: 450000,
-    address: "123 Main Street, Downtown, NY 10001",
-    bedrooms: 2,
-    bathrooms: 2,
-    sqft: 1200,
-    propertyType: "apartment",
-    yearBuilt: 2019,
-    lotSize: null,
-    parkingSpaces: 1,
-    images: [
-      "https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pixabay.com/photo/2017/03/28/12/13/chairs-2181968_1280.jpg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&fit=crop",
-      "https://images.pexels.com/photos/2121121/pexels-photo-2121121.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pixabay.com/photo/2016/12/30/07/59/kitchen-1940174_1280.jpg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop"
-    ],
-    video: "https://example.com/property-video",
-    coordinates: { lat: 40.7128, lng: -74.0060 },
-    daysOnMarket: 15,
-    mls: "MLS-2024-001234",
-    description: `Beautiful modern apartment in the heart of downtown with stunning city views and premium amenities. This spacious 2-bedroom, 2-bathroom unit features floor-to-ceiling windows, hardwood floors, and a gourmet kitchen with stainless steel appliances.
-      The open floor plan creates a seamless flow between the living, dining, and kitchen areas, perfect for entertaining. The master bedroom includes a walk-in closet and ensuite bathroom with marble finishes.
-      Building amenities include a fitness center, rooftop pool, 24-hour concierge service, and valet parking. Located within walking distance of restaurants, shopping, and public transportation with easy access to major highways.`,
-    amenities: [
-      "24-Hour Concierge",
-      "Fitness Center", 
-      "Rooftop Pool",
-      "Valet Parking",
-      "Pet Friendly",
-      "In-Unit Laundry",
-      "Balcony",
-      "Central Air",
-      "Hardwood Floors",
-      "Stainless Steel Appliances"
-    ],
-    agent: {
-      name: "Sarah Johnson",
-      phone: "(555) 123-4567",
-      email: "sarah.johnson@estatehub.com",
-      rating: 4.8,
-      reviewsCount: 127,
-      bio: "Sarah is a dedicated real estate professional with over 10 years of experience in the downtown market. She specializes in luxury apartments and condominiums."
-    },
+  // Helper function for copying to clipboard
+  const copyToClipboard = (text, id) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedPhone(id);
+      setTimeout(() => setCopiedPhone(null), 2000); // Reset after 2 seconds
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
   };
 
+
+  // Similar properties mock data (you can replace this with another API call later)
   const similarProperties = [
     {
       id: 2,
@@ -109,23 +78,68 @@ const PropertyDetails = () => {
 
   useEffect(() => {
     const fetchProperty = async () => {
-      setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setProperty(mockProperty);
-        setIsSaved(false);
+      if (!propertyId) {
+        setError('No property ID provided');
         setLoading(false);
-      }, 1000);
-    };
+        return;
+      }
 
-    if (propertyId) {
-      fetchProperty();
+      try {
+      setLoading(true);
+      setError(null);
+      const data = await getPropertyDetails(propertyId);
+      
+      // Process media array
+      const images = data.media
+        .filter(media => media.image) // Only items with images
+        .map(media => media.image);   // Extract image URLs
+      
+      const videos = data.media
+        .filter(media => media.video) // Only items with videos
+        .map(media => media.video);   // Extract video URLs
+      
+      // Get first video for the gallery (or null if none)
+      const primaryVideo = videos.length > 0 ? videos[0] : null;
+      
+      // Map API response to component structure
+      const mappedProperty = {
+        ...data,
+        daysOnMarket: data.days_since_posted,
+        agent_name: data.agent_name,
+        agent_email: data.agent_email,
+        agent_phone_number: data.agent_phone_number,
+        agent_whatsapp_number: data.agent_whatsapp_number, // Make sure your API provides this
+        
+        agent: {
+          name: data.agent_name, // The full name, e.g., "John Doe"
+          first_name: data.agent_name ? data.agent_name.split(' ')[0] : '', // Extracts "John"
+          last_name: data.agent_name ? data.agent_name.split(' ').slice(1).join(' ') : '', // Extracts "Doe"
+          email: data.agent_email,
+          phone: data.agent_phone_number
+        },
+        images,          // Processed image URLs
+        videos,          // All video URLs
+        video: primaryVideo  // First video for gallery
+      };
+      
+      setProperty(mappedProperty);
+      setIsSaved(data.is_saved);
+    } catch (error) {
+      // ... error handling ...
+    } finally {
+      setLoading(false);
     }
-  }, [propertyId]);
+  };
+
+  fetchProperty();
+}, [propertyId]);
+
+  
 
   const handleSave = () => {
     setIsSaved(!isSaved);
-    // In real app, sync with backend
+    // TODO: Implement save/unsave property API call
+    // saveFavoriteProperty(propertyId, !isSaved);
   };
 
   const handleShare = () => {
@@ -152,7 +166,7 @@ const PropertyDetails = () => {
 
   const helmet = (
     <Helmet>
-      <title>Property Details | EstateHub</title>
+      <title>{property?.title ? `${property.title} | EstateHub` : 'Property Details | EstateHub'}</title>
       <meta name="description" content={property?.description || "Find your dream property with EstateHub."} />
     </Helmet>
   );
@@ -169,7 +183,7 @@ const PropertyDetails = () => {
     );
   }
 
-  if (!property) {
+  if (error || !property) {
     return (
       <>
         {helmet}
@@ -180,18 +194,32 @@ const PropertyDetails = () => {
             <div className="text-center">
               <Icon name="Home" size={64} className="text-secondary mx-auto mb-4" />
               <h1 className="text-2xl font-bold text-text-primary mb-2">
-                Property Not Found
+                {error === 'Property not found' ? 'Property Not Found' : 'Error Loading Property'}
               </h1>
               <p className="text-text-secondary mb-6">
-                The property you're looking for doesn't exist or has been removed.
+                {error === 'Property not found' 
+                  ? "The property you're looking for doesn't exist or has been removed."
+                  : error || "There was an error loading the property details. Please try again."
+                }
               </p>
-              <Link
-                to="/property-listings"
-                className="inline-flex items-center space-x-2 bg-primary text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-all duration-200"
-              >
-                <Icon name="ArrowLeft" size={16} />
-                <span>Back to Properties</span>
-              </Link>
+              <div className="space-x-4">
+                <Link
+                  to="/property-listings"
+                  className="inline-flex items-center space-x-2 bg-primary text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-all duration-200"
+                >
+                  <Icon name="ArrowLeft" size={16} />
+                  <span>Back to Properties</span>
+                </Link>
+                {error && error !== 'Property not found' && (
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center space-x-2 bg-secondary text-text-primary px-6 py-3 rounded-md hover:bg-secondary-200 transition-all duration-200"
+                  >
+                    <Icon name="RefreshCw" size={16} />
+                    <span>Try Again</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </main>
@@ -252,25 +280,14 @@ const PropertyDetails = () => {
                 <Icon name="Share" size={18} />
               </button>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowContactForm(true)}
-                className="px-4 py-2 bg-accent text-white rounded-md text-sm font-medium hover:bg-accent-600 transition-all duration-200"
-              >
-                Contact Agent
-              </button>
-              <button className="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary-700 transition-all duration-200">
-                Schedule Tour
-              </button>
-            </div>
           </div>
         </div>
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Main Content */}
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column - Main Content (8 columns) */}
+            <div className="lg:col-span-8 space-y-6">
               {/* Image Gallery */}
               <ImageGallery 
                 images={property.images}
@@ -288,67 +305,139 @@ const PropertyDetails = () => {
                 onContact={() => setShowContactForm(true)}
               />
 
-              {/* Property Tabs */}
-              <PropertyTabs 
+              {/* Property Info */}
+              <PropertyInfo 
                 property={property}
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
               />
+              {/* Property Tabs */}
+              {/* <PropertyTabs 
+                property={property}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              /> */}
             </div>
 
-            {/* Right Column - Sidebar */}
-            <div className="space-y-6" >
+            {/* Right Column - Sticky Sidebar (4 columns) */}
+            <div className="lg:col-span-4">
+              <div className="sticky top-24 space-y-6">
+                {/* Professional Agent Contact Card */}
+                
+                <div className="card p-6">
+                  {/* Card Heading */}
+                  <h4 className="text-lg font-semibold text-text-primary mb-6 flex items-center">
+                    <Icon name="User" size={20} className="mr-2 text-primary" /> {/* Icon and text style matching Property Insights heading */}
+                    Contact Agent
+                  </h4>
 
-              {/* Agent Contact Card */}
-              <div className="card p-6">
-                <div className="flex items-center space-x-4 mb-4">
-                  <UserAvatar
-                    firstName={property.agent.first_name}
-                    lastName={property.agent.last_name}
-                    size="w-16 h-16"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-text-primary">{property.agent.name}</h3>
-                    <div className="flex items-center space-x-1 mb-1">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Icon
-                            key={i}
-                            name="Star"
-                            size={14}
-                            className={i < Math.floor(property.agent.rating) ? 'text-warning fill-current' : 'text-secondary-300'}
-                          />
-                        ))}
+                  {/* Agent Profile Section - Centered Avatar, Name, Phone */}
+                  <div className="flex flex-col items-center text-center pb-6 border-b border-gray-100 mb-6">
+                    <UserAvatar
+                      firstName={property.agent?.first_name}
+                      lastName={property.agent?.last_name}
+                      size="w-18 h-18 mb-2" // Adjusted size and margin for compactness
+                    />
+                    <h3 className="font-semibold text-xl text-text-primary mb-1">
+                      {property.agent?.name}
+                    </h3>
+                    {property.agent_phone_number && (
+                      <div className="flex items-center justify-center space-x-2 text-sm text-text-secondary relative">
+                        <span>{property.agent_phone_number}</span>
+                        <button
+                          onClick={() => copyToClipboard(property.agent_phone_number, property.id)} // Use the copyToClipboard function
+                          className="p-1 text-text-secondary hover:text-primary-700 hover:bg-primary-50 rounded-full transition-colors duration-200"
+                          title="Copy phone number"
+                        >
+                          {/* Icon changes to Check when copied */}
+                          {copiedPhone === property.id ? (
+                            <Icon name="Check" size={12} className="text-green-500" />
+                          ) : (
+                            <Icon name="Copy" size={12} />
+                          )}
+                        </button>
+                        {/* Removed the "Copied!" text message as per your request */}
                       </div>
-                      <span className="text-sm text-text-secondary">
-                        {property.agent.rating} ({property.agent.reviewsCount} reviews)
-                      </span>
-                    </div>
+                    )}
+                  </div>
+                  
+                  {/* Action Buttons Section - 2-Column Grid */}
+                  <div className="grid grid-cols-2 gap-3"> {/* Use grid for 2 columns with a small gap */}
+                    {/* WhatsApp Button */}
+                    {property.agent_whatsapp_number && (
+                      <button
+                        onClick={() => window.open(`https://wa.me/${property.agent_whatsapp_number?.replace(/[^\d+]/g, '')}`, '_blank')}
+                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
+                      >
+                        <Icon name="MessageSquare" size={18} className="text-green-600 mb-1" /> {/* Smaller icon and margin for compactness */}
+                        <span className="text-xs text-text-primary">WhatsApp</span> {/* Smaller text for compactness */}
+                      </button>
+                    )}
+
+                    {/* Call now Button */}
+                    {property.agent_phone_number && (
+                      <button
+                        onClick={() => window.open(`tel:${property.agent_phone_number}`, '_blank')}
+                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
+                      >
+                        <Icon name="Phone" size={18} className="text-accent mb-1" />
+                        <span className="text-xs text-text-primary">Call now</span>
+                      </button>
+                    )}
+
+                    {/* Send message (SMS) Button */}
+                    {property.agent_phone_number && (
+                      <button
+                        onClick={() => window.open(`sms:${property.agent_phone_number}`, '_blank')}
+                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
+                      >
+                        <Icon name="MessageCircle" size={18} className="text-blue-500 mb-1" />
+                        <span className="text-xs text-text-primary">Send SMS</span>
+                      </button>
+                    )}
+
+                    {/* Send Email Button */}
+                    {property.agent_email && (
+                      <button
+                        onClick={() => window.open(`mailto:${property.agent_email}`, '_blank')}
+                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
+                      >
+                        <Icon name="Mail" size={18} className="text-purple-500 mb-1" />
+                        <span className="text-xs text-text-primary">Send Email</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-                
-                <p className="text-sm text-text-secondary mb-4">
-                  {property.agent.bio}
-                </p>
-                
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setShowContactForm(true)}
-                    className="w-full flex items-center justify-center space-x-2 bg-primary text-white py-3 rounded-md hover:bg-primary-700 transition-all duration-200"
-                  >
-                    <Icon name="MessageCircle" size={16} />
-                    <span>Send Message</span>
-                  </button>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <button className="flex items-center justify-center space-x-2 bg-accent-100 text-accent-600 py-2 rounded-md hover:bg-accent hover:text-white transition-all duration-200">
-                      <Icon name="Phone" size={16} />
-                      <span className="text-sm">Call</span>
-                    </button>
-                    <button className="flex items-center justify-center space-x-2 bg-secondary-100 text-text-secondary py-2 rounded-md hover:bg-secondary-200 transition-all duration-200">
-                      <Icon name="Calendar" size={16} />
-                      <span className="text-sm">Schedule</span>
-                    </button>
+
+                {/* Property Insights Card */}
+                <div className="card p-6">
+                  <h4 className="text-lg font-semibold text-text-primary mb-4 flex items-center">
+                    <Icon name="TrendingUp" size={20} className="mr-2 text-primary" />
+                    Property Insights
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-sm text-text-secondary">Days on Market</span>
+                      <span className="text-sm font-medium text-success bg-success-100 px-2 py-1 rounded">
+                        {property.days_since_posted == null ? 'N/A' : property.days_since_posted}
+                        {property.days_since_posted == null
+                          ? ''
+                          : property.days_since_posted === 1
+                            ? ' day'
+                            : ' days'
+                        }
+                      </span>
+                    </div>
+                    {/* <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-sm text-text-secondary">MLS Number</span>
+                      <span className="text-sm font-mono text-text-primary">{property.mls || 'N/A'}</span>
+                    </div> */}
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm text-text-secondary">Property Type</span>
+                      <span className="text-sm font-medium text-accent bg-accent-100 px-2 py-1 rounded capitalize">
+                        {property.property_type || 'N/A'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -363,13 +452,13 @@ const PropertyDetails = () => {
       </main>
 
       {/* Contact Form Modal */}
-      {showContactForm && (
+      {/* {showContactForm && (
         <ContactForm
           property={property}
           agent={property.agent}
           onClose={() => setShowContactForm(false)}
         />
-      )}
+      )} */}
     </div>
     </>
   );
