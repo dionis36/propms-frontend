@@ -20,8 +20,8 @@ const ReviewForm = ({ formData, onEdit }) => {
   };
 
   const getFullAddress = () => {
-    const { address, city, state, zipCode } = formData || {};
-    return [address, city, state, zipCode].filter(Boolean).join(', ') || 'Not specified';
+    const { address } = formData || {};
+    return address || 'Not specified';
   };
 
   return (

@@ -5,11 +5,8 @@ import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  createProperty, 
-  updateProperty,
-  uploadPropertyMedia 
-} from '../../services/api';
+import { createProperty /*, updateProperty*/ } from '../../services/api';
+
 
 // Component imports
 import ProgressIndicator from './components/ProgressIndicator';
@@ -20,10 +17,11 @@ import PropertySpecificationsForm from './components/PropertySpecificationsForm'
 import ReviewForm from './components/ReviewForm';
 
 const PropertyCreateEdit = () => {
-  const { currentUser } = useAuth();
+  const { user: currentUser, accessToken } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
+
 
   // State management
   const [currentStep, setCurrentStep] = useState(1);
@@ -177,14 +175,13 @@ const PropertyCreateEdit = () => {
   };
 
   // Prepare payload for API submission
-  // Prepare payload for API submission
   const preparePayload = () => {
     const data = new FormData();
     
     // Required fields
     data.append('title', formData.title || '');
     data.append('description', formData.description || '');
-    data.append('address', formData.address || '');
+    data.append('location', formData.address || '');
     data.append('price', parseFloat(formData.price) || 0);
     data.append('property_type', (formData.propertyType || '').toUpperCase());
     data.append('status', (formData.status || '').toUpperCase());
@@ -195,12 +192,18 @@ const PropertyCreateEdit = () => {
     if (formData.locationNotes) {
       data.append('location_notes', formData.locationNotes);
     }
+    
+    // --- APPLYING THE FIX HERE ---
+    // Truncate/round latitude and longitude to 6 decimal places
     if (formData.latitude) {
-      data.append('latitude', formData.latitude.toString());
+      const formattedLatitude = parseFloat(formData.latitude.toFixed(6));
+      data.append('latitude', formattedLatitude.toString());
     }
     if (formData.longitude) {
-      data.append('longitude', formData.longitude.toString());
+      const formattedLongitude = parseFloat(formData.longitude.toFixed(6));
+      data.append('longitude', formattedLongitude.toString());
     }
+    // --- END OF FIX ---
 
     // Handle availability logic - ONLY for OCCUPIED status
     if (formData.status?.toUpperCase() === 'OCCUPIED' && formData.availableFrom) {
@@ -235,7 +238,7 @@ const PropertyCreateEdit = () => {
     }
 
     return data;
-  };
+};
 
   // Enhanced validation function
   const validateStepData = (step, data = formData) => {
@@ -360,99 +363,111 @@ const PropertyCreateEdit = () => {
     }
   };
 
-  // Publish property handler
-  const handlePublish = async () => {
-    // Validate all required steps (except media)
-    let isValid = true;
-    for (let step = 1; step <= 4; step++) {
-      if (step !== 3 && !validateStep(step)) {
-        isValid = false;
-        setCurrentStep(step);
-        break;
-      }
-    }
-    
-    if (!isValid) return;
-    
-    setIsLoading(true);
-    setIsUploadingMedia(false);
-    setSubmitError(null);
-    
-    try {
-      const payload = preparePayload();
-      
-      console.group('🚀 Publishing Property');
-      console.log('Endpoint:', id ? 'PATCH /properties' : 'POST /properties');
-      console.log('Form Data Contents:');
-      for (let [key, value] of payload.entries()) {
-        console.log(`${key}:`, value);
-      }
-      console.log('Current User:', currentUser);
-      console.groupEnd();
 
-      // Create or update property
-      const propertyData = id 
-        ? await updateProperty(id, payload)
-        : await createProperty(payload);
-      
-      console.log('✅ Property saved successfully:', propertyData);
-      
-      // Handle media upload if files exist
-      const hasMedia = (formData.images && formData.images.length > 0) || 
-                      (formData.videos && formData.videos.length > 0);
-      
-      if (hasMedia) {
-        setIsUploadingMedia(true);
-        console.log('📤 Uploading media files...');
-        
-        const mediaFiles = [];
-        
-        // Prepare image files
-        if (formData.images?.length > 0) {
-          formData.images.forEach(img => {
-            if (img.file) {
-              mediaFiles.push({
-                file: img.file,
-                type: 'image',
-                name: img.name,
-                isPrimary: img.isPrimary || false
-              });
-            }
-          });
-        }
-        
-        // Prepare video files
-        if (formData.videos?.length > 0) {
-          formData.videos.forEach(vid => {
-            if (vid.file) {
-              mediaFiles.push({
-                file: vid.file,
-                type: 'video',
-                name: vid.name
-              });
-            }
-          });
-        }
-        
-        if (mediaFiles.length > 0) {
-          await uploadPropertyMedia(propertyData.id, mediaFiles);
-          console.log('🖼️ Media upload completed successfully');
-        }
-      }
-      
-      // Clear draft and redirect
-      localStorage.removeItem(DRAFT_KEY);
-      console.log('🎉 Property published successfully!');
-      navigate(`/property/${propertyData.id}`);
-      
-    } catch (error) {
-      console.error('🚨 Publish error:', error);
-      setSubmitError(error.message || 'An error occurred during publishing. Please try again.');
-    } finally {
-      setIsLoading(false);
-      setIsUploadingMedia(false);
+
+const handlePublish = async () => {
+  let isValid = true;
+  for (let step = 1; step <= 4; step++) {
+    if (step !== 3 && !validateStep(step)) {
+      isValid = false;
+      setCurrentStep(step);
+      break;
     }
-  };
+  }
+  if (!isValid) return;
+
+  setIsLoading(true);
+  setIsUploadingMedia(false);
+  setSubmitError(null);
+
+  // Get token fresh inside the function
+  const token = accessToken || localStorage.getItem('accessToken');
+
+  console.group('🔐 Auth Debug');
+  console.log('currentUser:', currentUser);
+  console.log('accessToken from context:', accessToken);
+  console.log('localStorage accessToken:', localStorage.getItem('accessToken'));
+  console.log('Final token selected:', token);
+  console.groupEnd();
+
+  if (!token) {
+    setSubmitError('Authentication token not found. Please log in again.');
+    setIsLoading(false);
+    return;
+  }
+
+  try {
+    const payload = preparePayload();
+
+    console.group('🚀 Publishing Property');
+    console.log('Endpoint:', id ? 'PATCH /property/{id}/' : 'POST /property/submit/');
+    for (let [key, value] of payload.entries()) {
+      console.log(`${key}:`, value);
+    }
+    console.log('Token being sent:', token);
+    console.groupEnd();
+
+    const propertyData = id
+      ? null
+      : await createProperty(payload, token);
+
+    console.log('✅ Property saved successfully:', propertyData);
+
+    const hasMedia =
+      (formData.images && formData.images.length > 0) ||
+      (formData.videos && formData.videos.length > 0);
+
+    if (hasMedia) {
+      setIsUploadingMedia(true);
+      console.log('📤 Uploading media files...');
+
+      const mediaFiles = [];
+
+      formData.images?.forEach((img) => {
+        if (img.file) {
+          mediaFiles.push({
+            file: img.file,
+            type: 'image',
+            name: img.name,
+            isPrimary: img.isPrimary || false,
+          });
+        }
+      });
+
+      formData.videos?.forEach((vid) => {
+        if (vid.file) {
+          mediaFiles.push({
+            file: vid.file,
+            type: 'video',
+            name: vid.name,
+          });
+        }
+      });
+
+      if (mediaFiles.length > 0) {
+        // Note: uploadPropertyMedia function needs to be implemented if you want media upload
+        // await uploadPropertyMedia(propertyData.id, mediaFiles);
+        console.log('🖼️ Media upload would happen here');
+      }
+    }
+
+    localStorage.removeItem(DRAFT_KEY);
+    console.log('🎉 Property published successfully!');
+    navigate(`/property/${propertyData.id}`);
+  } catch (error) {
+    console.error('🚨 Publish error:', error);
+    
+    if (error.status === 401) {
+      setSubmitError('Authentication failed. Please log in again and try publishing.');
+    } else {
+      setSubmitError(error.message || 'An error occurred during publishing. Please try again.');
+    }
+  } finally {
+    setIsLoading(false);
+    setIsUploadingMedia(false);
+  }
+};
+
 
   // Cancel handler
   const handleCancel = () => {

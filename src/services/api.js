@@ -173,53 +173,55 @@ export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
  * @throws {Error} - Throws an error object with status and parsed error data.
  */
 async function makeRequest(url, method, data = null, token = null) {
-    const headers = {
-        'Content-Type': 'application/json',
-    };
+  const headers = {};
 
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+  // Only set JSON content type for non-FormData
+  if (!(data instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const config = {
+    method: method,
+    headers: headers,
+  };
+
+  if (data) {
+    config.body = data instanceof FormData ? data : JSON.stringify(data);
+  }
+
+  const response = await fetch(url, config);
+
+  if (!response.ok) {
+    let errorData;
+    let errorMessage = 'Request failed';
+
+    try {
+      errorData = await response.json();
+      errorMessage = errorData.detail || JSON.stringify(errorData);
+    } catch (e) {
+      const errorText = await response.text();
+      errorMessage = errorText || 'Request failed with no readable body';
     }
 
-    const config = { // Declared outside conditional block
-        method: method,
-        headers: headers,
-    };
+    const error = new Error(errorMessage);
+    error.status = response.status;
+    error.data = errorData;
 
-    if (data) {
-        config.body = JSON.stringify(data);
-    }
+    throw error;
+  }
 
-    const response = await fetch(url, config);
-
-    if (!response.ok) {
-        let errorData;
-        let errorMessage = 'Request failed';
-
-        try {
-            errorData = await response.json(); // Attempt to parse the response as JSON
-            errorMessage = errorData.detail || JSON.stringify(errorData); // Use 'detail' or stringify
-        } catch (e) {
-            const errorText = await response.text(); // Fallback to raw text if not JSON
-            errorMessage = errorText || 'Request failed with no readable body';
-        }
-
-        // Create a custom Error object with more context
-        const error = new Error(errorMessage);
-        error.status = response.status; // Attach HTTP status code
-        error.data = errorData;         // Attach parsed error data (if available)
-
-        throw error; // Throw the custom error
-    }
-
-    // For successful responses, return JSON or text based on content type
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        return response.json();
-    } else {
-        return response.text(); // For responses like 204 No Content
-    }
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return response.json();
+  } else {
+    return response.text();
+  }
 }
+
 
 
 // loginUser function to authenticate a user
@@ -278,55 +280,28 @@ export const registerUser = async (userData) => {
 
 
 // Property related API calls
-export const createProperty = async (data, token) => {
-    // Using makeRequest for consistency
-    return makeRequest(`${API_BASE}/properties`, 'POST', data, token);
+
+/**
+ * Submits a new property with associated media (images/videos).
+ * @param {FormData} formData - The FormData object containing property data and files.
+ * @param {string} token - The user's access token.
+ * @returns {Promise<object>} - The response data from the API.
+ */
+export const createProperty = async (formData, token) => {
+    // The makeRequest function now handles FormData correctly.
+    // No need to manually set 'Content-Type': 'multipart/form-data' as fetch does it automatically for FormData.
+    return makeRequest(`${API_BASE}/api/property/submit/`, 'POST', formData, token);
 };
 
-export const updateProperty = async (id, data, token) => {
-    // Using makeRequest for consistency
-    return makeRequest(`${API_BASE}/properties/${id}`, 'PATCH', data, token);
-};
+/**
+ * Updates an existing property with new data and potentially new media.
+ * @param {string} id - The ID of the property to update.
+ * @param {FormData} formData - The FormData object containing updated property data and files.
+ * @param {string} token - The user's access token.
+ * @returns {Promise<object>} - The response data from the API.
+ */
+// export const updateProperty = async (id, formData, token) => {
+//     // Use PATCH method for updating an existing resource.
+//     return makeRequest(`${API_BASE}/api/property/${id}/`, 'PATCH', formData, token);
+// };
 
-export const uploadPropertyMedia = async (propertyId, formData, token) => {
-    // This function cannot use makeRequest directly because makeRequest
-    // is designed for JSON bodies and sets 'Content-Type: application/json'.
-    // FormData requires a different approach (no Content-Type header,
-    // and the body is the FormData object itself).
-    // Therefore, it remains a direct fetch call to avoid changing makeRequest's logic.
-    const headers = {};
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE}/properties/${propertyId}/media`, {
-        method: 'POST',
-        headers: headers, // Only include Authorization if token exists
-        body: formData // No Content-Type header for FormData; fetch sets it automatically
-    });
-
-    if (!response.ok) {
-        let errorData;
-        let errorMessage = 'Upload failed';
-
-        try {
-            errorData = await response.json();
-            errorMessage = errorData.detail || JSON.stringify(errorData);
-        } catch (e) {
-            const errorText = await response.text();
-            errorMessage = errorText || 'Upload failed with no readable body';
-        }
-
-        const error = new Error(errorMessage);
-        error.status = response.status;
-        error.data = errorData;
-        throw error;
-    }
-
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        return response.json();
-    } else {
-        return response.text();
-    }
-};
