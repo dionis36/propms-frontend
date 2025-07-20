@@ -13,7 +13,7 @@ const PropertyOverview = ({
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'Tsh',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(price);
@@ -42,6 +42,7 @@ const PropertyOverview = ({
           
           <p className="text-3xl lg:text-4xl font-bold text-primary mb-3">
             {formatPrice(property?.price)}
+            <span className="text-sm font-normal text-text-secondary"> /month</span>
           </p>
           
           <div className="flex items-center space-x-2 text-text-secondary mb-4">

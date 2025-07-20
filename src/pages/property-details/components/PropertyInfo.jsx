@@ -114,117 +114,80 @@ const PropertyInfo = ({ property }) => {
     );
   };
 
-  const renderInteractiveMap = () => {
-    const { lat, lng } = getBoundedCoordinates();
-    
-    // Higher quality map URL with better styling
-    const mapUrl = `https://maps.locationiq.com/v3/staticmap?key=pk.ad563e9d0495f84cb1afb14f4f550d68&center=${lat},${lng}&zoom=16&size=1200x800&format=png&maptype=roads&markers=icon:large-red-cutout|${lat},${lng}&style=osm-bright`;
+const renderInteractiveMap = () => {
+  const { lat, lng } = getBoundedCoordinates();
+  const [zoomLevel, setZoomLevel] = useState(16); // default proximity zoom
+  const mapCenter = `${lat},${lng}`;
 
-    return (
-      <div className="relative bg-secondary-100 rounded-lg h-72 md:h-80 lg:h-96 overflow-hidden group">
-        {/* High-quality static map as background */}
-        <img
-          src={mapUrl}
-          alt="Property Location Map"
-          className="absolute inset-0 w-full h-full object-cover rounded-lg"
-          onLoad={() => setMapLoaded(true)}
-        />
+  const buildMapUrl = (zoom) =>
+    `https://maps.locationiq.com/v3/staticmap?key=pk.ad563e9d0495f84cb1afb14f4f550d68&center=${mapCenter}&zoom=${zoom}&size=1200x800&format=png&maptype=roads&markers=icon:large-red-cutout|${lat},${lng}&style=osm-bright`;
 
-        {/* Loading overlay */}
-        {!mapLoaded && (
-          <div className="absolute inset-0 bg-secondary-100 flex items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-              <p className="text-text-secondary text-sm">Loading map...</p>
-            </div>
+  const mapUrl = buildMapUrl(zoomLevel);
+
+  const handleZoomIn = () => {
+    if (zoomLevel < 20) setZoomLevel(z => z + 1);
+  };
+
+  const handleZoomOut = () => {
+    if (zoomLevel > 10) setZoomLevel(z => z - 1);
+  };
+
+  return (
+    <div className="relative bg-secondary-100 rounded-lg h-72 md:h-80 lg:h-96 overflow-hidden group" ref={mapRef}>
+      {/* Static Map */}
+      <img
+        src={mapUrl}
+        alt="Property Location Map"
+        className="absolute inset-0 w-full h-full object-cover rounded-lg"
+        onLoad={() => setMapLoaded(true)}
+      />
+
+      {/* Loading Overlay */}
+      {!mapLoaded && (
+        <div className="absolute inset-0 bg-secondary-100 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+            <p className="text-text-secondary text-sm">Loading map...</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Map Controls */}
-        <div className="absolute top-4 right-4 flex flex-col bg-white rounded-lg shadow-lg overflow-hidden z-30">
-          {/* Zoom In */}
+      {/* Zoom Controls */}
+      <div className="absolute top-4 right-4 flex flex-col space-y-2 z-30">
+        <div className="bg-surface rounded-md shadow-elevation-2 border border-border overflow-hidden">
           <button
-            onClick={() => {
-              // Since we're using static map, we'll refresh with higher zoom
-              const currentImg = mapRef.current?.querySelector('img');
-              if (currentImg) {
-                const currentSrc = currentImg.src;
-                const newSrc = currentSrc.replace(/zoom=\d+/, `zoom=17`);
-                currentImg.src = newSrc;
-              }
-            }}
-            className="p-2 hover:bg-secondary-50 transition-colors border-b border-secondary-200 text-text-primary"
-            aria-label="Zoom in"
+            onClick={handleZoomIn}
+            className="block w-10 h-10 flex items-center justify-center text-text-secondary 
+                     hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
           >
             <Icon name="Plus" size={16} />
           </button>
-          
-          {/* Zoom Out */}
+          <div className="border-t border-border"></div>
           <button
-            onClick={() => {
-              const currentImg = mapRef.current?.querySelector('img');
-              if (currentImg) {
-                const currentSrc = currentImg.src;
-                const newSrc = currentSrc.replace(/zoom=\d+/, `zoom=15`);
-                currentImg.src = newSrc;
-              }
-            }}
-            className="p-2 hover:bg-secondary-50 transition-colors border-b border-secondary-200 text-text-primary"
-            aria-label="Zoom out"
+            onClick={handleZoomOut}
+            className="block w-10 h-10 flex items-center justify-center text-text-secondary 
+                     hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
           >
             <Icon name="Minus" size={16} />
           </button>
-          
-          {/* North/Compass */}
-          <button
-            onClick={() => {
-              // Reset to default view
-              const currentImg = mapRef.current?.querySelector('img');
-              if (currentImg) {
-                currentImg.src = mapUrl;
-              }
-            }}
-            className="p-2 hover:bg-secondary-50 transition-colors text-text-primary"
-            aria-label="Reset view"
-          >
-            <Icon name="Compass" size={16} />
-          </button>
-        </div>
-
-        {/* Get Directions Button */}
-        <button
-          onClick={handleGetDirections}
-          className="absolute bottom-4 left-4 bg-primary text-white px-3 py-2 rounded-lg shadow-lg hover:bg-primary-600 transition-colors duration-200 flex items-center space-x-2 text-sm font-medium z-30"
-        >
-          <Icon name="Navigation" size={16} />
-          <span className="hidden sm:inline">Get Directions</span>
-          <span className="sm:hidden">Directions</span>
-        </button>
-
-        {/* Mobile-optimized fullscreen button */}
-        <button
-          onClick={() => {
-            const mapContainer = mapRef.current;
-            if (mapContainer.requestFullscreen) {
-              mapContainer.requestFullscreen();
-            }
-          }}
-          className="absolute bottom-4 right-4 bg-white text-primary p-2 rounded-lg shadow-lg hover:bg-secondary-50 transition-colors duration-200 z-30 sm:hidden"
-          aria-label="Fullscreen map"
-        >
-          <Icon name="Maximize2" size={16} />
-        </button>
-
-        {/* Location accuracy indicator for mobile */}
-        <div className="absolute top-4 left-4 bg-white bg-opacity-90 px-2 py-1 rounded-lg shadow-sm z-30 sm:hidden">
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-xs text-text-secondary">High Accuracy</span>
-          </div>
         </div>
       </div>
-    );
-  };
+
+      {/* Get Directions Button */}
+      <button
+        onClick={handleGetDirections}
+        className="absolute bottom-4 left-4 bg-primary text-white px-3 py-2 rounded-lg shadow-lg hover:bg-primary-600 transition-colors duration-200 flex items-center space-x-2 text-sm font-medium z-30"
+      >
+        <Icon name="Navigation" size={16} />
+        <span className="hidden sm:inline">Get Directions</span>
+        <span className="sm:hidden">Directions</span>
+      </button>
+    </div>
+  );
+};
+
+
+
 
   const renderLocation = () => (
     <div className="card overflow-hidden" ref={mapRef}>

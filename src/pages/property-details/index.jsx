@@ -11,7 +11,6 @@ import { getPropertyDetails } from '../../services/api'; // Import the API funct
 // Import components
 import ImageGallery from './components/ImageGallery';
 import PropertyOverview from './components/PropertyOverview';
-// import PropertyTabs from './components/PropertyTabs';
 import PropertyInfo from './components/PropertyInfo';
 import ContactForm from './components/ContactForm';
 import SimilarProperties from './components/SimilarProperties';
