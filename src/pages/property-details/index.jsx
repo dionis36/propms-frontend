@@ -118,7 +118,6 @@ const PropertyDetails = () => {
         },
         images,          // Processed image URLs
         videos,          // All video URLs
-        video: primaryVideo  // First video for gallery
       };
       
       setProperty(mappedProperty);
@@ -292,7 +291,7 @@ const PropertyDetails = () => {
                 images={property.images}
                 title={property.title}
                 virtualTour={property.virtualTour}
-                video={property.video}
+                video={property.videos}
               />
 
               {/* Property Overview */}

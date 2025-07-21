@@ -230,9 +230,9 @@ const PropertyCreateEdit = () => {
 
     // Video files (up to 3)
     if (formData.videos && formData.videos.length > 0) {
-      formData.videos.slice(0, 3).forEach(videoFile => {
+      formData.videos.slice(0, 3).forEach(videoFile => { // Remove the 'index' parameter
         if (videoFile && videoFile.file) {
-          data.append('video', videoFile.file);
+          data.append('video', videoFile.file); // Change back to a single, consistent key 'video'
         }
       });
     }
