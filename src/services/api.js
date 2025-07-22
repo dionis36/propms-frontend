@@ -1,4 +1,3 @@
-
 // // src/services/api.js
 
 // export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
@@ -19,76 +18,61 @@
 //  * @throws {Error} - Throws an error object with status and parsed error data.
 //  */
 // async function makeRequest(url, method, data = null, token = null) {
-//     const headers = {
-//         'Content-Type': 'application/json',
-//     };
+//   const headers = {};
 
-//     if (token) {
-//         headers['Authorization'] = `Bearer ${token}`;
+//   // Only set JSON content type for non-FormData
+//   if (!(data instanceof FormData)) {
+//     headers['Content-Type'] = 'application/json';
+//   }
+
+//   if (token) {
+//     headers['Authorization'] = `Bearer ${token}`;
+//   }
+
+//   const config = {
+//     method: method,
+//     headers: headers,
+//   };
+
+//   if (data) {
+//     config.body = data instanceof FormData ? data : JSON.stringify(data);
+//   }
+
+//   const response = await fetch(url, config);
+
+//   if (!response.ok) {
+//     let errorData;
+//     let errorMessage = 'Request failed';
+
+//     try {
+//       errorData = await response.json();
+//       errorMessage = errorData.detail || JSON.stringify(errorData);
+//     } catch (e) {
+//       const errorText = await response.text();
+//       errorMessage = errorText || 'Request failed with no readable body';
 //     }
 
-//     const config = { // Declared outside conditional block
-//         method: method,
-//         headers: headers,
-//     };
+//     const error = new Error(errorMessage);
+//     error.status = response.status;
+//     error.data = errorData;
 
-//     if (data) {
-//         config.body = JSON.stringify(data);
-//     }
+//     throw error;
+//   }
 
-//     const response = await fetch(url, config);
-
-//     if (!response.ok) {
-//         let errorData;
-//         let errorMessage = 'Request failed';
-
-//         try {
-//             errorData = await response.json(); // Attempt to parse the response as JSON
-//             errorMessage = errorData.detail || JSON.stringify(errorData); // Use 'detail' or stringify
-//         } catch (e) {
-//             const errorText = await response.text(); // Fallback to raw text if not JSON
-//             errorMessage = errorText || 'Request failed with no readable body';
-//         }
-
-//         // Create a custom Error object with more context
-//         const error = new Error(errorMessage);
-//         error.status = response.status; // Attach HTTP status code
-//         error.data = errorData;         // Attach parsed error data (if available)
-
-//         throw error; // Throw the custom error
-//     }
-
-//     // For successful responses, return JSON or text based on content type
-//     const contentType = response.headers.get('content-type');
-//     if (contentType && contentType.includes('application/json')) {
-//         return response.json();
-//     } else {
-//         return response.text(); // For responses like 204 No Content
-//     }
+//   const contentType = response.headers.get('content-type');
+//   if (contentType && contentType.includes('application/json')) {
+//     return response.json();
+//   } else {
+//     return response.text();
+//   }
 // }
+
 
 
 // // loginUser function to authenticate a user
 // export const loginUser = async (email, password) => {
 //     // Uses makeRequest for consistency
 //     const response = await makeRequest(`${API_BASE}/api/token/`, 'POST', { email, password });
-
-//     // If your loginUser also decodes JWT and stores role, add that logic here:
-//     // const { access, refresh } = response;
-//     // const jwtDecode = (await import('jwt-decode')).default;
-//     // try {
-//     //     const decodedToken = jwtDecode(access);
-//     //     const userRole = decodedToken.role;
-//     //     const userId = decodedToken.user_id;
-//     //     localStorage.setItem('accessToken', access);
-//     //     localStorage.setItem('refreshToken', refresh);
-//     //     localStorage.setItem('userRole', userRole);
-//     //     localStorage.setItem('userId', userId);
-//     //     return { success: true, role: userRole, userId: userId };
-//     // } catch (error) {
-//     //     console.error("Error decoding JWT token in loginUser:", error);
-//     //     throw new Error("Failed to process login token.");
-//     // }
 
 //     return response; // Returns the token response directly if no decoding here
 // };
@@ -123,34 +107,37 @@
 // };
 
 
-// import { API_BASE } from './apiConfig';
-
-// export const createProperty = async (data) => {
-//   const response = await fetch(`${API_BASE}/properties`, {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify(data)
-//   });
-//   return response.json();
+// // Property related API calls
+// export const createProperty = async (formData, token) => {
+//     // The makeRequest function now handles FormData correctly.
+//     // No need to manually set 'Content-Type': 'multipart/form-data' as fetch does it automatically for FormData.
+//     return makeRequest(`${API_BASE}/api/property/submit/`, 'POST', formData, token);
+// };
+// export const updateProperty = async (propertyId, payload, token) => {
+//   // Use makeRequest for consistency.
+//   // The payload (FormData) will be handled correctly by makeRequest.
+//   return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'PATCH', payload, token);
 // };
 
-// export const updateProperty = async (id, data) => {
-//   const response = await fetch(`${API_BASE}/properties/${id}`, {
-//     method: 'PATCH',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify(data)
-//   });
-//   return response.json();
+// // display property details
+// export const getPropertyDetails = async (propertyId, token = null) => {
+//   try {
+//     // Use makeRequest for consistency
+//     // The URL is constructed using API_BASE and the propertyId
+//     // The method is 'GET', no data is sent in the body, and the token is passed
+//     return await makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'GET', null, token);
+//   } catch (error) {
+//     console.error('Error fetching property details:', error);
+//     // Re-throw the error so calling components can handle it
+//     throw error;
+//   }
 // };
 
-// export const uploadPropertyMedia = async (propertyId, formData) => {
-//   const response = await fetch(`${API_BASE}/properties/${propertyId}/media`, {
-//     method: 'POST',
-//     body: formData // No Content-Type header for FormData
-//   });
-//   return response.json();
+// // Get broker's own listings
+// export const getMyProperties = async (token) => {
+//   // Use makeRequest for consistency and error handling
+//   return makeRequest(`${API_BASE}/api/properties/my-properties/`, 'GET', null, token);
 // };
-
 
 
 // src/services/api.js
@@ -223,28 +210,10 @@ async function makeRequest(url, method, data = null, token = null) {
 }
 
 
-
 // loginUser function to authenticate a user
 export const loginUser = async (email, password) => {
     // Uses makeRequest for consistency
     const response = await makeRequest(`${API_BASE}/api/token/`, 'POST', { email, password });
-
-    // If your loginUser also decodes JWT and stores role, add that logic here:
-    // const { access, refresh } = response;
-    // const jwtDecode = (await import('jwt-decode')).default;
-    // try {
-    //     const decodedToken = jwtDecode(access);
-    //     const userRole = decodedToken.role;
-    //     const userId = decodedToken.user_id;
-    //     localStorage.setItem('accessToken', access);
-    //     localStorage.setItem('refreshToken', refresh);
-    //     localStorage.setItem('userRole', userRole);
-    //     localStorage.setItem('userId', userId);
-    //     return { success: true, role: userRole, userId: userId };
-    // } catch (error) {
-    //     console.error("Error decoding JWT token in loginUser:", error);
-    //     throw new Error("Failed to process login token.");
-    // }
 
     return response; // Returns the token response directly if no decoding here
 };
@@ -280,31 +249,16 @@ export const registerUser = async (userData) => {
 
 
 // Property related API calls
-
-/**
- * Submits a new property with associated media (images/videos).
- * @param {FormData} formData - The FormData object containing property data and files.
- * @param {string} token - The user's access token.
- * @returns {Promise<object>} - The response data from the API.
- */
 export const createProperty = async (formData, token) => {
     // The makeRequest function now handles FormData correctly.
     // No need to manually set 'Content-Type': 'multipart/form-data' as fetch does it automatically for FormData.
     return makeRequest(`${API_BASE}/api/property/submit/`, 'POST', formData, token);
 };
-
-/**
- * Updates an existing property with new data and potentially new media.
- * @param {string} id - The ID of the property to update.
- * @param {FormData} formData - The FormData object containing updated property data and files.
- * @param {string} token - The user's access token.
- * @returns {Promise<object>} - The response data from the API.
- */
-// export const updateProperty = async (id, formData, token) => {
-//     // Use PATCH method for updating an existing resource.
-//     return makeRequest(`${API_BASE}/api/property/${id}/`, 'PATCH', formData, token);
-// };
-
+export const updateProperty = async (propertyId, payload, token) => {
+  // Use makeRequest for consistency.
+  // The payload (FormData) will be handled correctly by makeRequest.
+  return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'PATCH', payload, token);
+};
 
 // display property details
 export const getPropertyDetails = async (propertyId, token = null) => {
@@ -318,4 +272,16 @@ export const getPropertyDetails = async (propertyId, token = null) => {
     // Re-throw the error so calling components can handle it
     throw error;
   }
+};
+
+// Get broker's own listings
+export const getMyProperties = async (token) => {
+  // Use makeRequest for consistency and error handling
+  return makeRequest(`${API_BASE}/api/properties/my-properties/`, 'GET', null, token);
+};
+
+export const getPropertyById = async (id, token) => {
+  // Refactored to use the makeRequest helper for consistency.
+  // This ensures proper error handling, token inclusion, and API_BASE usage.
+  return makeRequest(`${API_BASE}/api/properties/${id}/`, 'GET', null, token);
 };

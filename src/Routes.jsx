@@ -59,10 +59,9 @@ const Routes = () => {
           {/* Property Create/Edit - accessible by BROKER or ADMIN roles */}
           <Route path="/property-create-edit" element={<PrivateRoute allowedRoles={['BROKER', 'ADMIN']} />}>
             <Route index element={<PropertyCreateEdit />} />
+            <Route path=":id" element={<PropertyCreateEdit />} />
           </Route>
-          <Route path="/property-create-edit/:id" element={<PrivateRoute allowedRoles={['BROKER', 'ADMIN']} />}>
-            <Route index element={<PropertyCreateEdit />} />
-          </Route>
+
 
           {/* Catch-all route for 404 Not Found */}
           <Route path="*" element={<NotFound />} />

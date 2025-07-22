@@ -3,6 +3,7 @@ export default function WelcomeBanner({ name, vacantListings }) {
   const today = new Date();
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   const dateString = today.toLocaleDateString('en-US', options);
+
   
   return (
     <div className="card p-6 bg-gradient-to-r from-primary-50 to-accent-50">

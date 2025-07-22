@@ -5,7 +5,7 @@ import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../../contexts/AuthContext';
-import { createProperty /*, updateProperty*/ } from '../../services/api';
+import { createProperty, getPropertyById } from '../../services/api';
 
 
 // Component imports
@@ -113,40 +113,54 @@ const PropertyCreateEdit = () => {
     }
   };
 
-  // Load existing property data for editing
-  const loadPropertyData = async (propertyId) => {
-    setIsLoading(true);
-    try {
-      // Replace with actual API call
-      setTimeout(() => {
-        const mockData = {
-          title: 'Beautiful Downtown Condo',
-          price: 450000,
-          propertyType: 'APARTMENT',
-          status: 'AVAILABLE',
-          description: 'A stunning downtown condominium with modern amenities...',
-          address: '123 Main Street, Mikocheni B, Dar es Salaam',
-          locationNotes: '3 mins walk to UDSM gate',
-          rooms: 2,
-          bathrooms: 2,
-          longitude: 39.2026,
-          latitude: -6.7924,
-          amenities: ['wifi', 'air_conditioning', 'parking'],
-          availableFrom: '', // Empty for AVAILABLE status
-          images: [],
-          videos: []
-        };
-        setFormData(mockData);
-        setIsDraft(false);
-        // Mark all steps as completed for editing mode
-        setCompletedSteps(new Set([1, 2, 3, 4]));
-        setIsLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to load property data:', error);
-      setIsLoading(false);
-    }
-  };
+
+const loadPropertyData = async (propertyId) => {
+  setIsLoading(true);
+  try {
+    const token = accessToken || localStorage.getItem('accessToken');
+    const property = await getPropertyById(propertyId, token); // real backend fetch
+
+    setFormData({
+      title: property.title,
+      price: property.price,
+      propertyType: property.property_type,
+      status: property.status,
+      description: property.description,
+      address: property.location,
+      locationNotes: property.location_notes,
+      rooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      latitude: parseFloat(property.latitude),
+      longitude: parseFloat(property.longitude),
+      amenities: Array.isArray(property.amenities)
+        ? property.amenities
+        : JSON.parse(property.amenities[0] || '[]'),
+      availableFrom: property.available_from || '',
+      images: property.media
+        .filter(media => media.image)
+        .map(media => ({
+          name: media.image.split('/').pop(),
+          file: null, // no actual file, just placeholder
+          url: media.image,
+        })),
+      videos: property.media
+        .filter(media => media.video)
+        .map(media => ({
+          name: media.video.split('/').pop(),
+          file: null,
+          url: media.video,
+        })),
+    });
+
+    setIsDraft(false);
+    setCompletedSteps(new Set([1, 2, 3, 4]));
+  } catch (error) {
+    console.error('Failed to load property data:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // Save draft to localStorage (excluding File objects)
   const saveDraftToLocalStorage = () => {
