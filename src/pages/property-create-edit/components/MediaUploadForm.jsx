@@ -36,7 +36,7 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
     'image/jpeg': [0xFF, 0xD8, 0xFF],
     'image/png': [0x89, 0x50, 0x4E, 0x47],
     'image/webp': [0x52, 0x49, 0x46, 0x46],
-    'video/mp4': [0x00, 0x00, 0x00, null, 0x66, 0x74, 0x79, 0x70], // ftyp box
+    'video/mp4': [0x00, 0x00, 0x00, null, 0x66, 0x74, 0x79, 0x70],
     'video/avi': [0x52, 0x49, 0x46, 0x46],
     'video/quicktime': [0x00, 0x00, 0x00, null, 0x66, 0x74, 0x79, 0x70]
   };
@@ -54,7 +54,6 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
           return;
         }
 
-        // Check if file starts with expected signature
         const matches = signature.every((byte, index) => {
           return byte === null || arr[index] === byte;
         });
@@ -64,28 +63,6 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
       reader.onerror = () => resolve(false);
       reader.readAsArrayBuffer(file.slice(0, 16));
     });
-  };
-
-  // Sanitize filename to remove invalid characters
-  const sanitizeFilename = (filename) => {
-    // Get file extension
-    const lastDotIndex = filename.lastIndexOf('.');
-    const name = lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
-    const extension = lastDotIndex > 0 ? filename.substring(lastDotIndex) : '';
-    
-    // Replace invalid characters with underscores and clean up
-    let sanitizedName = name
-      .replace(/[^a-zA-Z0-9\s\-_]/g, '_') // Replace invalid chars with underscore
-      .replace(/\s+/g, '_') // Replace spaces with underscore
-      .replace(/_+/g, '_') // Replace multiple underscores with single
-      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
-    
-    // Ensure name is not empty
-    if (!sanitizedName) {
-      sanitizedName = 'file';
-    }
-    
-    return sanitizedName + extension;
   };
 
   // Enhanced file validation
@@ -215,9 +192,11 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
       return;
     }
     
+    // Check if there's already a primary image
+    const hasPrimary = images.some(img => img.isPrimary);
+    
     // Create image objects for valid files
     const newImages = validFiles.map((file, index) => {
-      // Generate unique identifier
       const uniqueId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
       
       return {
@@ -226,8 +205,9 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
         preview: URL.createObjectURL(file),
         name: file.name,
         size: file.size,
-        // Only set as primary if it's the first image in the batch AND there are no existing images
-        isPrimary: index === 0 && images.length === 0
+        type: 'image',
+        // Only set as primary if it's the first image in the batch AND there are no existing primary images
+        isPrimary: index === 0 && !hasPrimary && images.length === 0
       };
     });
     
@@ -271,11 +251,12 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
     
     // Create video objects for valid files
     const newVideos = validFiles.map(file => ({
-      id: Date.now() + Math.random(),
+      id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
       file,
       preview: URL.createObjectURL(file),
       name: file.name,
-      size: file.size
+      size: file.size,
+      type: 'video'
     }));
     
     setFormData(prev => ({
@@ -293,13 +274,20 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
       URL.revokeObjectURL(imageToRemove.preview);
     }
     
+    // Create new array without the removed image
     const remainingImages = images.filter(img => img.id !== imageId);
     
-    // If removed image was primary, make first remaining image primary
+    // FIXED: Only set new primary if the removed image WAS primary and there are remaining images
     if (imageToRemove?.isPrimary && remainingImages.length > 0) {
-      remainingImages[0].isPrimary = true;
+      // Ensure only the first remaining image becomes primary
+      remainingImages[0] = { ...remainingImages[0], isPrimary: true };
+      // Ensure all other images are not primary
+      for (let i = 1; i < remainingImages.length; i++) {
+        remainingImages[i] = { ...remainingImages[i], isPrimary: false };
+      }
     }
     
+    // FIXED: Update state properly to prevent deletion bugs
     setFormData(prev => ({
       ...prev,
       images: remainingImages
@@ -312,13 +300,17 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
       URL.revokeObjectURL(videoToRemove.preview);
     }
     
+    // FIXED: Create new array properly
+    const remainingVideos = videos.filter(vid => vid.id !== videoId);
+    
     setFormData(prev => ({
       ...prev,
-      videos: prev?.videos?.filter(vid => vid.id !== videoId) || []
+      videos: remainingVideos
     }));
   };
 
   const setPrimaryImage = (imageId) => {
+    // FIXED: Ensure only one primary image at a time
     const updatedImages = images.map(img => ({
       ...img,
       isPrimary: img.id === imageId
@@ -348,6 +340,43 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
+  // FIXED: Helper function to get media data for review forms
+  const getMediaSummary = () => {
+    const primaryImage = images.find(img => img.isPrimary);
+    return {
+      totalImages: images.length,
+      totalVideos: videos.length,
+      primaryImage: primaryImage ? {
+        name: primaryImage.name,
+        size: formatFileSize(primaryImage.size),
+        preview: primaryImage.preview
+      } : null,
+      allImages: images.map(img => ({
+        id: img.id,
+        name: img.name,
+        size: formatFileSize(img.size),
+        isPrimary: img.isPrimary,
+        preview: img.preview
+      })),
+      allVideos: videos.map(vid => ({
+        id: vid.id,
+        name: vid.name,
+        size: formatFileSize(vid.size),
+        preview: vid.preview
+      }))
+    };
+  };
+
+  // Expose media summary for parent components (like review forms)
+  React.useEffect(() => {
+    if (setFormData) {
+      setFormData(prev => ({
+        ...prev,
+        mediaSummary: getMediaSummary()
+      }));
+    }
+  }, [images, videos]);
 
   return (
     <div className="space-y-6">

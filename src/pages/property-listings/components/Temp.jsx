@@ -3,7 +3,6 @@ import { useSearchParams, Link } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import Icon from '../../components/AppIcon';
 import { Helmet } from 'react-helmet-async';
-import { getAllProperties } from '../../services/api';
 
 import PropertyCard from './components/PropertyCard';
 import FilterPanel from './components/FilterPanel';
@@ -19,77 +18,192 @@ const PropertyListings = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
-  const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // Items per page
-  const [searchKeyword, setSearchKeyword] = useState(searchParams.get('query') || '');
-  const desktopListRef = useRef();
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef();
 
-  // Calculate pagination values
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProperties = filteredProperties.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
-
-  // Format API response to match frontend structure
-  const formatListings = (apiData) => {
-    return apiData.map(property => ({
-      id: property.id,
-      title: property.title,
-      price: parseFloat(property.price),
-      address: property.location,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      sqft: 0, // Not provided in API
-      propertyType: property.property_type.toLowerCase(),
-      status: property.status,
-      images: property.media
-        .filter(media => media.image)
-        .map(media => media.image),
+  // Mock property data with updated images
+  const mockProperties = [
+    {
+      id: 1,
+      title: "Modern Downtown Apartment",
+      price: 450000,
+      address: "123 Main Street, Downtown, NY 10001",
+      bedrooms: 2,
+      bathrooms: 2,
+      sqft: 1200,
+      propertyType: "apartment",
+      status: "VACANT",
+      images: [
+        "https://images.pexels.com/photos/2121121/pexels-photo-2121121.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop",
+        "https://images.pixabay.com/photo/2016/11/18/17/46/house-1836070_1280.jpg",
+        "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=600&fit=crop"
+      ],
       agent: {
-        name: property.agent_name,
-        phone: property.agent_phone_number,
-        avatar: "https://randomuser.me/api/portraits/men/1.jpg" // Placeholder
+        name: "Sarah Johnson",
+        phone: "(555) 123-4567",
+        avatar: "https://randomuser.me/api/portraits/women/32.jpg"
       },
-      coordinates: { 
-        lat: parseFloat(property.latitude), 
-        lng: parseFloat(property.longitude) 
-      },
-      isSaved: property.is_saved,
-      daysOnMarket: property.days_since_posted,
-      amenities: property.amenities && property.amenities.length > 0 
-        ? JSON.parse(property.amenities[0]) 
-        : [],
-      description: property.description
-    }));
-  };
+      coordinates: { lat: 40.7128, lng: -74.0060 },
+      isSaved: false,
+      daysOnMarket: 15,
+      amenities: ["Gym", "Pool", "Parking", "Pet Friendly"],
+      description: `Beautiful modern apartment in the heart of downtown with stunning city views and premium amenities. This spacious 2-bedroom, 2-bathroom unit features floor-to-ceiling windows, hardwood floors, and a gourmet kitchen with stainless steel appliances.
 
-  // Fetch properties from API
+The building offers world-class amenities including a fitness center, rooftop pool, and 24-hour concierge service. Located within walking distance of restaurants, shopping, and public transportation.`
+    },
+    {
+      id: 2,
+      title: "Luxury Suburban House",
+      price: 750000,
+      address: "456 Oak Avenue, Westfield, NJ 07090",
+      bedrooms: 4,
+      bathrooms: 3,
+      sqft: 2800,
+      propertyType: "house",
+      status: "OCCUPIED",
+      images: [
+        "https://images.pixabay.com/photo/2017/04/10/22/28/residence-2219972_1280.jpg",
+        "https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&h=600&fit=crop"
+      ],
+      agent: {
+        name: "Michael Chen",
+        phone: "(555) 987-6543",
+        avatar: "https://randomuser.me/api/portraits/men/45.jpg"
+      },
+      coordinates: { lat: 40.6501, lng: -74.3496 },
+      isSaved: true,
+      daysOnMarket: 8,
+      amenities: ["Garage", "Garden", "Fireplace", "Basement"],
+      description: `Stunning 4-bedroom colonial home in prestigious Westfield neighborhood. This meticulously maintained property features an open floor plan, gourmet kitchen with granite countertops, and a master suite with walk-in closet.
+
+The beautifully landscaped yard includes a deck perfect for entertaining and a two-car garage. Located in top-rated school district with easy access to NYC transportation.`
+    },
+    {
+      id: 3,
+      title: "Cozy Studio Loft",
+      price: 280000,
+      address: "789 Industrial Blvd, Brooklyn, NY 11201",
+      bedrooms: 1,
+      bathrooms: 1,
+      sqft: 650,
+      propertyType: "loft",
+      status: "VACANT",
+      images: [
+        "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop",
+        "https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop"
+      ],
+      agent: {
+        name: "Emily Rodriguez",
+        phone: "(555) 456-7890",
+        avatar: "https://randomuser.me/api/portraits/women/28.jpg"
+      },
+      coordinates: { lat: 40.6892, lng: -73.9442 },
+      isSaved: false,
+      daysOnMarket: 22,
+      amenities: ["Exposed Brick", "High Ceilings", "Hardwood Floors"],
+      description: `Charming studio loft in trendy Brooklyn neighborhood featuring exposed brick walls, soaring ceilings, and original hardwood floors. This unique space offers an open layout perfect for modern living.
+
+Located in a converted warehouse building with easy access to Manhattan via subway. The area is known for its vibrant arts scene, cafes, and restaurants.`
+    },
+    {
+      id: 4,
+      title: "Waterfront Condo",
+      price: 920000,
+      address: "321 Harbor View, Jersey City, NJ 07302",
+      bedrooms: 3,
+      bathrooms: 2,
+      sqft: 1800,
+      propertyType: "condo",
+      status: "VACANT",
+      images: [
+        "https://images.pixabay.com/photo/2016/11/22/23/38/apartment-1851201_1280.jpg",
+        "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop"
+      ],
+      agent: {
+        name: "David Park",
+        phone: "(555) 321-0987",
+        avatar: "https://randomuser.me/api/portraits/men/35.jpg"
+      },
+      coordinates: { lat: 40.7178, lng: -74.0431 },
+      isSaved: false,
+      daysOnMarket: 5,
+      amenities: ["Water View", "Balcony", "Concierge", "Gym"],
+      description: `Spectacular waterfront condo with breathtaking Manhattan skyline views. This luxury 3-bedroom unit features floor-to-ceiling windows, premium finishes, and a private balcony overlooking the Hudson River.
+
+Building amenities include 24-hour doorman, fitness center, and rooftop deck. Prime location with ferry service to Manhattan and PATH train access.`
+    },
+    {
+      id: 5,
+      title: "Historic Townhouse",
+      price: 1200000,
+      address: "567 Brownstone Row, Brooklyn, NY 11215",
+      bedrooms: 4,
+      bathrooms: 3,
+      sqft: 3200,
+      propertyType: "townhouse",
+      images: [
+        "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800&h=600&fit=crop",
+        "https://images.pixabay.com/photo/2017/03/22/17/39/kitchen-2165756_1280.jpg"
+      ],
+      agent: {
+        name: "Lisa Thompson",
+        phone: "(555) 654-3210",
+        avatar: "https://randomuser.me/api/portraits/women/42.jpg"
+      },
+      coordinates: { lat: 40.6782, lng: -73.9442 },
+      isSaved: true,
+      daysOnMarket: 12,
+      amenities: ["Historic Details", "Private Garden", "Parking", "Renovated"],
+      description: `Beautifully restored 19th-century brownstone townhouse in Park Slope. This elegant 4-bedroom home combines historic charm with modern amenities, featuring original moldings, hardwood floors, and updated kitchen and baths.
+
+The property includes a private garden, finished basement, and parking space. Located on a tree-lined street near Prospect Park and excellent restaurants.`
+    },
+    {
+      id: 6,
+      title: "Modern Penthouse",
+      price: 1850000,
+      address: "890 Sky Tower, Manhattan, NY 10019",
+      bedrooms: 3,
+      bathrooms: 3,
+      sqft: 2200,
+      propertyType: "penthouse",
+      images: [
+        "https://images.pexels.com/photos/1571463/pexels-photo-1571463.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop",
+        "https://images.pixabay.com/photo/2016/12/30/07/59/kitchen-1940174_1280.jpg"
+      ],
+      agent: {
+        name: "Robert Kim",
+        phone: "(555) 789-0123",
+        avatar: "https://randomuser.me/api/portraits/men/38.jpg"
+      },
+      coordinates: { lat: 40.7589, lng: -73.9851 },
+      isSaved: false,
+      daysOnMarket: 3,
+      amenities: ["Terrace", "City Views", "Luxury Finishes", "Doorman"],
+      description: `Extraordinary penthouse with panoramic city views and private terrace. This sophisticated 3-bedroom residence features the finest finishes, custom millwork, and a gourmet kitchen with top-of-the-line appliances.
+
+The wraparound terrace offers stunning views of Central Park and the Manhattan skyline. Building amenities include full-service concierge, fitness center, and valet parking.`
+    }
+  ];
+
+  // Initialize properties and apply filters
   useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true);
-      try {
-        const data = await getAllProperties();
-        const formattedProperties = formatListings(data);
-        setProperties(formattedProperties);
-        applyFilters(formattedProperties);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load properties. Please try again later.');
-        console.error('Error fetching properties:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProperties();
+    setLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      setProperties(mockProperties);
+      applyFilters(mockProperties);
+      setLoading(false);
+    }, 1000);
   }, []);
 
   // Apply filters based on search params
   const applyFilters = (propertiesToFilter = properties) => {
     let filtered = [...propertiesToFilter];
     
-    const query = searchParams.get('query') || '';
+    const query = searchParams.get('query');
     const location = searchParams.get('location');
     const propertyType = searchParams.get('propertyType');
     const minPrice = searchParams.get('minPrice');
@@ -145,7 +259,6 @@ const PropertyListings = () => {
     filtered = sortProperties(filtered, sortBy);
     
     setFilteredProperties(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
   };
 
   // Sort properties
@@ -173,7 +286,6 @@ const PropertyListings = () => {
     setSortBy(newSortBy);
     const sorted = sortProperties(filteredProperties, newSortBy);
     setFilteredProperties(sorted);
-    setCurrentPage(1); // Reset to first page when sorting changes
   };
 
   // Handle filter changes
@@ -187,7 +299,6 @@ const PropertyListings = () => {
     });
     
     setSearchParams(newSearchParams);
-    setSearchKeyword(filters.query || '');
     applyFilters();
   };
 
@@ -201,23 +312,23 @@ const PropertyListings = () => {
     ));
   };
 
-  // Handle keyword search
-  const handleKeywordSearch = (e) => {
-    if (e.key === 'Enter' || e.type === 'click') {
-      handleFilterChange({ ...Object.fromEntries(searchParams), query: searchKeyword });
-    }
-  };
-
-  // Handle page change
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
+  // Infinite scroll observer
+  const lastPropertyElementRef = useRef();
+  useEffect(() => {
+    if (loading) return;
     
-    // Scroll to top of property list
-    if (desktopListRef.current) {
-      desktopListRef.current.scrollTop = 0;
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    
+    if (lastPropertyElementRef.current) {
+      observerRef.current.observe(lastPropertyElementRef.current);
     }
-    window.scrollTo(0, 0);
-  };
+  }, [loading, hasMore]);
 
   // Get breadcrumb items
   const getBreadcrumbs = () => {
@@ -291,27 +402,11 @@ const PropertyListings = () => {
                   Properties for Sale
                 </h1>
                 <p className="text-text-secondary mt-1">
-                  {loading ? 'Loading...' : 
-                    `Showing ${Math.min(indexOfFirstItem + 1, filteredProperties.length)}-${Math.min(indexOfLastItem, filteredProperties.length)} of ${filteredProperties.length} properties`}
+                  {loading ? 'Loading...' : `${filteredProperties.length} properties found`}
                 </p>
               </div>
 
               <div className="flex items-center space-x-3">
-                {/* Keyword Search */}
-                <div className="relative hidden sm:block">
-                  <input
-                    type="text"
-                    className="pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64"
-                    placeholder="Search by keyword..."
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    onKeyDown={handleKeywordSearch}
-                  />
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Icon name="Search" size={16} className="text-text-secondary" />
-                  </div>
-                </div>
-
                 {/* View Toggle (Mobile) */}
                 <div className="flex lg:hidden bg-secondary-100 rounded-md p-1">
                   <button
@@ -374,7 +469,7 @@ const PropertyListings = () => {
               {/* Desktop Split View */}
               <div className="hidden lg:flex h-[calc(100vh-200px)]">
                 {/* Property List */}
-                <div className="w-3/5 overflow-y-auto" ref={desktopListRef}>
+                <div className="w-3/5 overflow-y-auto">
                   <div className="p-6">
                     {loading ? (
                       <div className="grid grid-cols-1 gap-6">
@@ -400,9 +495,10 @@ const PropertyListings = () => {
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        {currentProperties.map((property) => (
+                        {filteredProperties.map((property, index) => (
                           <div
                             key={property.id}
+                            ref={index === filteredProperties.length - 1 ? lastPropertyElementRef : null}
                             onMouseEnter={() => setSelectedProperty(property)}
                             onMouseLeave={() => setSelectedProperty(null)}
                           >
@@ -424,91 +520,6 @@ const PropertyListings = () => {
                             <p className="text-text-secondary">
                               Try adjusting your search criteria or filters
                             </p>
-                          </div>
-                        )}
-
-                        {/* Pagination Controls */}
-                        {filteredProperties.length > 0 && totalPages > 1 && (
-                          <div className="flex items-center justify-between border-t border-border pt-6">
-                            <div className="text-sm text-text-secondary">
-                              Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <button
-                                onClick={() => handlePageChange(1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                First
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Previous
-                              </button>
-                              
-                              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNumber;
-                                if (totalPages <= 5) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage <= 3) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage >= totalPages - 2) {
-                                  pageNumber = totalPages - 4 + i;
-                                } else {
-                                  pageNumber = currentPage - 2 + i;
-                                }
-                                
-                                return (
-                                  <button
-                                    key={pageNumber}
-                                    onClick={() => handlePageChange(pageNumber)}
-                                    className={`w-8 h-8 rounded text-sm font-medium ${
-                                      currentPage === pageNumber
-                                        ? 'bg-primary text-white'
-                                        : 'text-text-primary hover:bg-secondary-50'
-                                    }`}
-                                  >
-                                    {pageNumber}
-                                  </button>
-                                );
-                              })}
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Next
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(totalPages)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Last
-                              </button>
-                            </div>
                           </div>
                         )}
                       </div>
@@ -547,8 +558,11 @@ const PropertyListings = () => {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {currentProperties.map((property) => (
-                          <div key={property.id}>
+                        {filteredProperties.map((property, index) => (
+                          <div
+                            key={property.id}
+                            ref={index === filteredProperties.length - 1 ? lastPropertyElementRef : null}
+                          >
                             <PropertyCard
                               property={property}
                               variant="card"
@@ -566,94 +580,6 @@ const PropertyListings = () => {
                             <p className="text-text-secondary">
                               Try adjusting your search criteria or filters
                             </p>
-                          </div>
-                        )}
-
-                        {/* Pagination Controls for Mobile */}
-                        {filteredProperties.length > 0 && totalPages > 1 && (
-                          <div className="flex flex-col items-center justify-center border-t border-border pt-6 space-y-4">
-                            <div className="flex items-center space-x-1">
-                              <button
-                                onClick={() => handlePageChange(1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                First
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Previous
-                              </button>
-                              
-                              <span className="px-3 py-1.5 text-sm font-medium text-text-primary">
-                                {currentPage} of {totalPages}
-                              </span>
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Next
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(totalPages)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Last
-                              </button>
-                            </div>
-                            
-                            <div className="flex items-center space-x-1">
-                              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNumber;
-                                if (totalPages <= 5) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage <= 3) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage >= totalPages - 2) {
-                                  pageNumber = totalPages - 4 + i;
-                                } else {
-                                  pageNumber = currentPage - 2 + i;
-                                }
-                                
-                                return (
-                                  <button
-                                    key={pageNumber}
-                                    onClick={() => handlePageChange(pageNumber)}
-                                    className={`w-8 h-8 rounded text-sm font-medium ${
-                                      currentPage === pageNumber
-                                        ? 'bg-primary text-white'
-                                        : 'text-text-primary hover:bg-secondary-50'
-                                    }`}
-                                  >
-                                    {pageNumber}
-                                  </button>
-                                );
-                              })}
-                            </div>
                           </div>
                         )}
                       </div>

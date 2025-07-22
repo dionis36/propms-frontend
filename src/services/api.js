@@ -285,3 +285,54 @@ export const getPropertyById = async (id, token) => {
   // This ensures proper error handling, token inclusion, and API_BASE usage.
   return makeRequest(`${API_BASE}/api/properties/${id}/`, 'GET', null, token);
 };
+
+export const getAllProperties = async () => {
+  // Use makeRequest for consistency and centralized error handling
+  // No token is passed as this is assumed to be a public endpoint.
+  return makeRequest(`${API_BASE}/api/properties/`, 'GET', null, null);
+};
+
+
+
+
+
+// export const getAllProperties = async () => {
+//   const response = await fetch(`${API_BASE}/api/properties/`, {
+//     method: 'GET',
+//   });
+
+//   if (!response.ok) {
+//     throw new Error('Failed to fetch properties');
+//   }
+
+//   const data = await response.json(); // ← this is the array of property objects
+//   return formatListings(data);
+// };
+
+// export const formatListings = (data) =>
+//   data.map((item) => ({
+//     id: item.id,
+//     title: item.title,
+//     price: parseFloat(item.price),
+//     address: item.location,
+//     bedrooms: item.bedrooms,
+//     bathrooms: item.bathrooms,
+//     sqft: null,
+//     propertyType: item.property_type.toLowerCase(),
+//     status: item.status,
+//     images: item.media?.filter((m) => m.image)?.map((m) => m.image),
+//     agent: {
+//       name: item.agent_name,
+//       phone: item.agent_phone_number,
+//       avatar: null,
+//     },
+//     coordinates: {
+//       lat: parseFloat(item.latitude),
+//       lng: parseFloat(item.longitude),
+//     },
+//     isSaved: item.is_saved,
+//     daysOnMarket: item.days_since_posted,
+//     amenities: Array.isArray(item.amenities) ? JSON.parse(item.amenities[0]) : [],
+//     description: item.description,
+//   }));
+

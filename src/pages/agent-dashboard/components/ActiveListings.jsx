@@ -244,7 +244,7 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
     <div ref={containerRef} className="card p-6">
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div ref={deleteModalRef} className="bg-white rounded-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-bold text-text-primary mb-2">Confirm Deletion</h3>
             <p className="text-text-secondary mb-6">
@@ -270,7 +270,7 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
 
       {/* Status Update Modal */}
       {showStatusModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div ref={statusModalRef} className="bg-white rounded-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-bold text-text-primary mb-4">Update Property Status</h3>
             
@@ -312,7 +312,7 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
               <button 
                 onClick={confirmStatusUpdate}
                 disabled={isUpdatingStatus || (newStatus === 'occupied' && !availableFromDate)}
-                className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50"
+                className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50 backdrop-blur-sm"
               >
                 {isUpdatingStatus ? 'Updating...' : 'Update Status'}
               </button>

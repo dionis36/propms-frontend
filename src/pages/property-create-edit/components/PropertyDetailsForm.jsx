@@ -114,7 +114,7 @@ const PropertyDetailsForm = ({ formData, setFormData, errors, setErrors }) => {
           </label>
           <select
             name="propertyType"
-            value={formData?.propertyType || ''}
+            value={formData.propertyType || ''}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 bg-background text-text-primary ${
               errors?.propertyType ? 'border-error' : 'border-border focus:border-border-focus'
