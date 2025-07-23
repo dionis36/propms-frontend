@@ -1,10 +1,35 @@
 // pages/tenant-dashboard/components/PropertyFeed.jsx
+import { useEffect, useState } from 'react';
+import { getAllProperties } from '../../../services/api'; // adjust path if needed
+import { useAuth } from '../../../contexts/AuthContext';
+
 export default function PropertyFeed() {
-  const properties = [
-    { id: 1, name: 'Lakeside Cottage', status: 'Vacant', price: '$1,650' },
-    { id: 2, name: 'Urban Studio', status: 'Vacant', price: '$1,200' },
-    { id: 3, name: 'Garden Apartment', status: 'Vacant', price: '$1,950' },
-  ];
+  const [properties, setProperties] = useState([]);
+  const { accessToken } = useAuth();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getAllProperties(accessToken);
+        // Filter for new, vacant properties, and customize details
+        const filtered = data
+          .filter(p => p.status === 'VACANT')
+          .slice(0, 5)
+          .map(p => ({
+            id: p.id,
+            name: p.title,
+            status: 'Vacant',
+            price: `TZS ${parseInt(p.price).toLocaleString()}`,
+          }));
+
+        setProperties(filtered);
+      } catch (error) {
+        console.error('Failed to load property feed:', error);
+      }
+    };
+
+    fetchData();
+  }, [accessToken]);
 
   return (
     <div className="card p-6">

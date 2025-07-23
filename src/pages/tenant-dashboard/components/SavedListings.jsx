@@ -16,12 +16,10 @@ export default function SavedListings() {
   const [removingId, setRemovingId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
-  const { showToast } = useToast();
-  
+  const { showToast } = useToast();  
   const { accessToken } = useAuth();
   const navigate = useNavigate();
   const deleteModalRef = useRef();
-
 
   // 🔹 Format backend favorites data
   const formatFavorites = (data) =>
@@ -127,7 +125,6 @@ export default function SavedListings() {
   // 🔹 Handle view property details
   const handleViewProperty = (propertyId) => {
     navigate(`/property-details?id=${propertyId}`);
-
   };
 
   // 🔹 Filter and pagination logic
@@ -217,7 +214,14 @@ export default function SavedListings() {
     <>
       <div className="card p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
-          <h2 className="text-xl font-semibold text-text-primary">Saved Properties</h2>
+          <div>
+            <h2 className="text-xl font-semibold text-text-primary">Saved Properties</h2>
+            {savedListings.length > 0 && (
+              <p className="text-sm text-text-secondary mt-1">
+                Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredListings.length)} of {filteredListings.length}
+              </p>
+            )}
+          </div>
           <button 
             onClick={() => navigate('/property-listings')}
             className="btn-secondary text-sm px-4 py-2 rounded-md w-full sm:w-auto"
@@ -276,8 +280,8 @@ export default function SavedListings() {
 
                   {/* Property Details */}
                   <div className="sm:ml-4 flex-grow">
-                    <div className="flex flex-col space-y-3">
-                      <div className="flex-grow">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                      <div className="flex-grow mb-3 sm:mb-0">
                         <h3 
                           className="font-medium text-text-primary hover:text-primary cursor-pointer transition-colors text-lg sm:text-base"
                           onClick={() => handleViewProperty(property.propertyId)}
@@ -302,47 +306,45 @@ export default function SavedListings() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center justify-between sm:justify-end space-x-2">
-                        <div className="flex items-center space-x-2">
-                          {/* View Property */}
-                          <button
-                            onClick={() => handleViewProperty(property.propertyId)}
-                            className="p-2 text-text-secondary hover:text-primary hover:bg-primary-50 rounded-md transition-colors"
-                            title="View Property"
-                          >
-                            <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </button>
+                      <div className="flex items-center space-x-2 sm:ml-4 flex-shrink-0">
+                        {/* View Property */}
+                        <button
+                          onClick={() => handleViewProperty(property.propertyId)}
+                          className="p-2 text-text-secondary hover:text-primary hover:bg-primary-50 rounded-md transition-colors"
+                          title="View Property"
+                        >
+                          <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
 
-                          {/* Share Property */}
-                          <button
-                            onClick={() => handleShare(property)}
-                            className="p-2 text-text-secondary hover:text-secondary hover:bg-secondary-50 rounded-md transition-colors"
-                            title="Share Property"
-                          >
-                            <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                            </svg>
-                          </button>
+                        {/* Share Property */}
+                        <button
+                          onClick={() => handleShare(property)}
+                          className="p-2 text-text-secondary hover:text-secondary hover:bg-secondary-50 rounded-md transition-colors"
+                          title="Share Property"
+                        >
+                          <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                          </svg>
+                        </button>
 
-                          {/* Remove from Favorites */}
-                          <button
-                            onClick={() => handleDeleteClick(property)}
-                            disabled={removingId === property.propertyId}
-                            className="p-2 text-text-secondary hover:text-error hover:bg-error-50 rounded-md transition-colors disabled:opacity-50"
-                            title="Remove from Saved"
-                          >
-                            {removingId === property.propertyId ? (
-                              <div className="w-5 h-5 sm:w-4 sm:h-4 border-2 border-error border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                              <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
+                        {/* Remove from Favorites */}
+                        <button
+                          onClick={() => handleDeleteClick(property)}
+                          disabled={removingId === property.propertyId}
+                          className="p-2 text-text-secondary hover:text-error hover:bg-error-50 rounded-md transition-colors disabled:opacity-50"
+                          title="Remove from Saved"
+                        >
+                          {removingId === property.propertyId ? (
+                            <div className="w-5 h-5 sm:w-4 sm:h-4 border-2 border-error border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <svg className="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -436,7 +438,6 @@ export default function SavedListings() {
           </div>
         </div>
       )}
-
     </>
   );
 }
