@@ -150,17 +150,17 @@ export const getAllProperties = async () => {
   return makeRequest(`${API_BASE}/api/properties/`, 'GET', null, null);
 };
 
-// 📍 Save a property to favorites
+// Save a property to favorites
 export const saveFavorite = (propertyId, accessToken) => {
   return makeRequest(`${API_BASE}/api/favorites/`, 'POST', { property_id: propertyId }, accessToken);
 };
 
-// 📍 Remove a favorite by property ID (using the custom DRF view)
+// Remove a favorite by property ID (using the custom DRF view)
 export const removeFavorite = (propertyId, accessToken) => {
   return makeRequest(`${API_BASE}/api/favorites/remove-by-property/${propertyId}/`, 'DELETE', null, accessToken);
 };
 
-// 📍 Get all favorites for the logged-in tenant
+// Get all favorites for the logged-in tenant
 export const getFavorites = (accessToken) => {
   return makeRequest(`${API_BASE}/api/favorites/`, 'GET', null, accessToken);
 };

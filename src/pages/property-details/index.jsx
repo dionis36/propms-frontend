@@ -141,7 +141,14 @@ const handleSave = async (e) => {
   e.preventDefault();
   e.stopPropagation();
 
-  if (!user?.role || user.role !== 'TENANT') {
+  // 1. Not logged in
+  if (!user || !accessToken) {
+    showToast('Login to save favorites.', 'error');
+    return;
+  }
+
+  // 2. Logged in, but not a tenant
+  if (user && user.role !== 'TENANT') {
     showToast('Only tenants can save favorites.', 'error');
     return;
   }
@@ -149,7 +156,7 @@ const handleSave = async (e) => {
   try {
     if (!property?.isSaved) {
       await saveFavorite(property.id, accessToken);
-      showToast('Property saved to favorites!', 'success');
+      showToast('Property save to favorites!', 'success');
     } else {
       await removeFavorite(property.id, accessToken);
       showToast('Removed from favorites.', 'info');

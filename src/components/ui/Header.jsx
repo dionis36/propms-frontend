@@ -3,6 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
 import { useAuth } from '../../contexts/AuthContext'; // Added AuthContext import
 import UserAvatar from '../ui/UserAvatar'; // Added UserAvatar import
+import { useToast } from '../../contexts/ToastContext'; // Adjust path
+
+
 
 const Header = () => {
  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -12,6 +15,8 @@ const Header = () => {
   const location = useLocation();
   const userMenuRef = useRef(null);
   const mobileMenuRef = useRef(null);
+  const { showToast } = useToast();
+
 
   // Get authentication state from context
   const { user, isAuthenticated, logout } = useAuth(); // Added auth context
@@ -89,6 +94,8 @@ const userMenuItems = [
     if (action === 'logout') {
       logout(); // Use logout from AuthContext
     }
+    showToast("Logged Out 👌", "info");
+
     setIsUserMenuOpen(false);
   };
 

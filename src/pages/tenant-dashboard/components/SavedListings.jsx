@@ -5,6 +5,7 @@ import EmptyState from './EmptyState';
 import { getFavorites, removeFavorite } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext'; // Adjust path
+import { createPortal } from 'react-dom';
 
 
 export default function SavedListings() {
@@ -72,7 +73,7 @@ export default function SavedListings() {
       setRemovingId(propertyToDelete.propertyId);
       await removeFavorite(propertyToDelete.propertyId, accessToken);
       setSavedListings(prev => prev.filter(item => item.propertyId !== propertyToDelete.propertyId));
-      showToast("Property removed from saved list", "success");
+      showToast("Property removed from saved list", "info");
       setShowDeleteModal(false);
       setPropertyToDelete(null);
     } catch (error) {
@@ -403,41 +404,42 @@ export default function SavedListings() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div ref={deleteModalRef} className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold text-text-primary mb-2">Remove from Saved</h3>
-            <p className="text-text-secondary mb-6">
-              Are you sure you want to remove "{propertyToDelete?.title}" from your saved properties?
-            </p>
-            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setPropertyToDelete(null);
-                }}
-                className="btn-secondary px-4 py-2 rounded-md w-full sm:w-auto"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={removingId === propertyToDelete?.propertyId}
-                className="bg-error text-white px-4 py-2 rounded-md hover:bg-error-dark transition-colors disabled:opacity-50 w-full sm:w-auto"
-              >
-                {removingId === propertyToDelete?.propertyId ? (
-                  <div className="flex items-center justify-center">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Removing...
-                  </div>
-                ) : (
-                  'Remove Property'
-                )}
-              </button>
+{showDeleteModal && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div ref={deleteModalRef} className="bg-white rounded-lg p-6 max-w-md w-full">
+      <h3 className="text-lg font-bold text-text-primary mb-2">Remove from Saved</h3>
+      <p className="text-text-secondary mb-6">
+        Are you sure you want to remove "{propertyToDelete?.title}" from your saved properties?
+      </p>
+      <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
+        <button
+          onClick={() => {
+            setShowDeleteModal(false);
+            setPropertyToDelete(null);
+          }}
+          className="btn-secondary px-4 py-2 rounded-md w-full sm:w-auto"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={confirmDelete}
+          disabled={removingId === propertyToDelete?.propertyId}
+          className="bg-error text-white px-4 py-2 rounded-md hover:bg-error-dark transition-colors disabled:opacity-50 w-full sm:w-auto"
+        >
+          {removingId === propertyToDelete?.propertyId ? (
+            <div className="flex items-center justify-center">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              Removing...
             </div>
-          </div>
-        </div>
-      )}
+          ) : (
+            'Remove Property'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
     </>
   );
 }

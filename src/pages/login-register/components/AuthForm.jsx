@@ -5,6 +5,10 @@ import Input from 'components/ui/Input';
 import Icon from 'components/AppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
 import { registerUser } from '../../../services/api';
+import { useToast } from '../../../contexts/ToastContext'; // Adjust path
+
+
+
 
 
 const AuthForm = ({ mode, onForgotPassword }) => {
@@ -25,6 +29,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const [fieldErrors, setFieldErrors] = useState({}); // <--- NEW STATE: For backend field-specific errors
+  const { showToast } = useToast();
 
 
 
@@ -279,8 +284,11 @@ const validateForm = () => {
           formData.rememberMe,
           navigate
         );
+        showToast("Logged In, Welcome Back👌", "success");
+
 
         if (!success) {
+          showToast("Invalid email or password. Please try again.", "error");
           setErrors({
             submit: 'Invalid email or password. Please try again.'
           });
@@ -299,6 +307,7 @@ const validateForm = () => {
 
         // Call the new registerUser API function
         const responseData = await registerUser(payload); // <--- MODIFIED: Use registerUser
+        showToast("Registration successful!", "success");
 
         setErrors({
           success: responseData.message || 'Registration successful!'
@@ -335,6 +344,7 @@ const validateForm = () => {
         }
         setFieldErrors(backendErrors); // <--- NEW: Set specific field errors
         if (error.data.detail) {
+          showToast({ submit: error.data.detail }, "error");
           setErrors({ submit: error.data.detail }); // General error if backend sends 'detail'
         } else if (Object.keys(error.data).length > 0) {
             setErrors({ submit: 'Please correct the errors in the form.' }); // Generic message for field errors

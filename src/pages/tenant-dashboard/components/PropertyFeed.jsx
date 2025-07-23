@@ -1,6 +1,6 @@
 // pages/tenant-dashboard/components/PropertyFeed.jsx
 import { useEffect, useState } from 'react';
-import { getAllProperties } from '../../../services/api'; // adjust path if needed
+import { getAllProperties } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 
 export default function PropertyFeed() {
@@ -11,15 +11,16 @@ export default function PropertyFeed() {
     const fetchData = async () => {
       try {
         const data = await getAllProperties(accessToken);
-        // Filter for new, vacant properties, and customize details
         const filtered = data
-          .filter(p => p.status === 'VACANT')
+          .filter(p => p.status === 'AVAILABLE')
           .slice(0, 5)
           .map(p => ({
             id: p.id,
             name: p.title,
             status: 'Vacant',
             price: `TZS ${parseInt(p.price).toLocaleString()}`,
+            // Get first valid image URL from media array
+            imageUrl: p.media.find(m => m.image)?.image || null
           }));
 
         setProperties(filtered);
@@ -42,8 +43,20 @@ export default function PropertyFeed() {
       
       <div className="space-y-4">
         {properties.map(property => (
-          <div key={property.id} className="flex items-start">
-            <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12 flex-shrink-0" />
+          <a 
+            key={property.id}
+            href={`http://localhost:4028/property-details?id=${property.id}`}
+            className="flex items-start hover:bg-gray-50 rounded-lg transition-colors duration-200 no-underline text-inherit"
+          >
+            {property.imageUrl ? (
+              <img 
+                src={property.imageUrl} 
+                alt={property.name} 
+                className="rounded-xl w-12 h-12 flex-shrink-0 object-cover border border-gray-200"
+              />
+            ) : (
+              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12 flex-shrink-0" />
+            )}
             <div className="ml-3">
               <h3 className="font-medium text-text-primary">{property.name}</h3>
               <div className="flex items-center mt-1">
@@ -53,15 +66,11 @@ export default function PropertyFeed() {
                 <span className="text-sm text-text-secondary">{property.price}</span>
               </div>
             </div>
-          </div>
+          </a>
         ))}
       </div>
       
-      <div className="mt-6">
-        <button className="btn-primary w-full py-2 px-4 rounded-md">
-          Set Up Property Alerts
-        </button>
-      </div>
+      
     </div>
   );
 }
