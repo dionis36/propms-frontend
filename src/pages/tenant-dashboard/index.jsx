@@ -1,54 +1,35 @@
 // pages/tenant-dashboard/index.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from 'components/ui/Header';
+import Header from '../../components/ui/Header';
 import WelcomeBanner from './components/WelcomeBanner';
 import DashboardOverview from './components/DashboardOverview';
 import SavedListings from './components/SavedListings';
 import PropertyFeed from './components/PropertyFeed';
 import ProfileQuickEdit from './components/ProfileQuickEdit';
 import { Helmet } from 'react-helmet-async';
+import { useAuth } from '../../contexts/AuthContext'; // Import auth context
 
 const TenantDashboard = () => {
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user, accessToken } = useAuth(); // Get user and token from auth context
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('auth_token');
-    const userRole = localStorage.getItem('user_role');
-    
-    if (!token || userRole !== 'tenant') {
-      navigate('/login-register');
-      return;
-    }
 
-    // Mock user data fetch
-    const fetchUserData = async () => {
+    // Just simulate brief loading for UI consistency
+    const initializeDashboard = async () => {
       try {
-        // Mock API call
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setUser({
-          id: 1,
-          name: 'Sarah Johnson',
-          email: 'sarah.johnson@email.com',
-          phone: '+1 (555) 123-4567',
-          joinDate: '2024-01-15',
-          savedProperties: 12,
-          viewedProperties: 45,
-          activeAlerts: 3,
-          preferences: '2 Bedrooms • Pet Friendly • Downtown'
-        });
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
-        console.error('Failed to fetch user data:', error);
+        console.error('Failed to initialize dashboard:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserData();
-  }, [navigate]);
+    initializeDashboard();
+  }, [accessToken, user, navigate]);
 
   const helmet = (
     <Helmet>
@@ -193,7 +174,9 @@ const TenantDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              <WelcomeBanner user={user} />
+              <WelcomeBanner 
+                name={user?.first_name}
+              />
               <DashboardOverview user={user} />
               <SavedListings user={user} />
             </div>
@@ -201,7 +184,7 @@ const TenantDashboard = () => {
             {/* Right Column */}
             <div className="space-y-6">
               <PropertyFeed user={user} />
-              <ProfileQuickEdit user={user} onUpdate={setUser} />
+              <ProfileQuickEdit user={user} />
             </div>
           </div>
         </div>

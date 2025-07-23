@@ -1,5 +1,5 @@
 // pages/tenant-dashboard/components/WelcomeBanner.jsx
-export default function WelcomeBanner() {
+export default function WelcomeBanner({ name }) {
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -12,7 +12,7 @@ export default function WelcomeBanner() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">
-            {getGreeting()}, <span className="text-primary">Alex Morgan</span> 👋
+            {getGreeting()}, <span className="text-primary">{name}</span> 👋
           </h1>
           <p className="text-text-secondary mt-2">
             Here's what's happening with your rental applications today

@@ -101,12 +101,12 @@ const handlePasswordSubmit = async (e) => {
     }
     
     // Debugging: Log detailed error info
-    console.error('Password change failed:', {
-      endpoint: `${BASE_URL}/users/change-password/`,
-      method: 'PATCH',
-      status: err.message.includes('Server returned') ? 'HTML response' : 'API error',
-      error: err.message
-    });
+    // console.error('Password change failed:', {
+    //   endpoint: `${BASE_URL}/users/change-password/`,
+    //   method: 'PATCH',
+    //   status: err.message.includes('Server returned') ? 'HTML response' : 'API error',
+    //   error: err.message
+    // });
   } finally {
     setIsLoading(false);
   }

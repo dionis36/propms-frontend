@@ -5,7 +5,9 @@ import Header from '../../components/ui/Header';
 import Icon from '../../components/AppIcon';
 import UserAvatar from '../../components/ui/UserAvatar';
 import { Helmet } from 'react-helmet-async';
-import { getPropertyDetails } from '../../services/api'; // Import the API function
+import { getPropertyDetails, saveFavorite, removeFavorite  } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 
 // Import components
@@ -26,6 +28,8 @@ const PropertyDetails = () => {
   const [activeTab, setActiveTab] = useState('description');
   const [showContactForm, setShowContactForm] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(null); // <-- Add this line
+  const { showToast } = useToast();
+  const { accessToken, user } = useAuth();
 
 
   const propertyId = searchParams.get('id');
@@ -133,12 +137,31 @@ const PropertyDetails = () => {
 }, [propertyId]);
 
   
+const handleSave = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
 
-  const handleSave = () => {
-    setIsSaved(!isSaved);
-    // TODO: Implement save/unsave property API call
-    // saveFavoriteProperty(propertyId, !isSaved);
-  };
+  if (!user?.role || user.role !== 'TENANT') {
+    showToast('Only tenants can save favorites.', 'error');
+    return;
+  }
+
+  try {
+    if (!property?.isSaved) {
+      await saveFavorite(property.id, accessToken);
+      showToast('Property saved to favorites!', 'success');
+    } else {
+      await removeFavorite(property.id, accessToken);
+      showToast('Removed from favorites.', 'info');
+    }
+
+    // Optional: toggle state in parent
+    onSave?.(property.id, !property.isSaved);
+  } catch (error) {
+    console.error('Favorite error:', error);
+    showToast(error.message || 'Failed to update favorite.', 'error');
+  }
+};
 
   const handleShare = () => {
     if (navigator.share) {

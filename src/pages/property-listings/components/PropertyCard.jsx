@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Image from '../../../components/AppImage';
 import StatusBadge from '../../../components/StatusBadge';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
+import { saveFavorite, removeFavorite } from '../../../services/api';
+
+
 
 const PropertyCard = ({ 
   property, 
@@ -12,6 +17,9 @@ const PropertyCard = ({
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const { showToast } = useToast();
+  const { accessToken, user } = useAuth();
+
 
   // Backup images if property has no images
   const defaultImages = [
@@ -41,13 +49,32 @@ const PropertyCard = ({
     return num ? new Intl.NumberFormat('en-US').format(num) : 'N/A';
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onSave) {
-      onSave(property?.id, !property?.isSaved);
+const handleSave = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (!user?.role || user.role !== 'TENANT') {
+    showToast('Only tenants can save favorites.', 'error');
+    return;
+  }
+
+  try {
+    if (!property?.isSaved) {
+      await saveFavorite(property.id, accessToken);
+      showToast('Property saved to favorites!', 'success');
+    } else {
+      await removeFavorite(property.id, accessToken);
+      showToast('Removed from favorites.', 'info');
     }
-  };
+
+    // Optional: toggle state in parent
+    onSave?.(property.id, !property.isSaved);
+  } catch (error) {
+    console.error('Favorite error:', error);
+    showToast(error.message || 'Failed to update favorite.', 'error');
+  }
+};
+
 
   const handleImageNavigation = (direction, e) => {
     e.preventDefault();

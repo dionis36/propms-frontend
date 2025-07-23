@@ -15,7 +15,6 @@ const AgentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState([]);
   const { accessToken, user } = useAuth(); // assuming your auth context provides token and user info
-
   const navigate = useNavigate();
 
   // 🔹 Format backend listings into what your UI expects
