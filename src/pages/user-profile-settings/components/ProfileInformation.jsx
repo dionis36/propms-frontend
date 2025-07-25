@@ -44,7 +44,8 @@ const ProfileInformation = ({ user, onDataChange }) => {
               <UserAvatar
                 firstName={user?.first_name}
                 lastName={user?.last_name}
-                size="w-full h-full"
+                size="w-full h-full text-xl"
+                
                 className="transition-transform duration-200"
               />
             </div>

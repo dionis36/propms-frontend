@@ -2,6 +2,8 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 import Image from '../../../components/AppImage';
+import StatusBadge from '../../../components/StatusBadge'; // Adjust path as needed
+
 
 const PropertyOverview = ({ 
   property, 
@@ -96,15 +98,41 @@ const PropertyOverview = ({
         </div>
       </div>
 
-      {/* Property Type & Quick Info */}
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        <div className="flex items-center space-x-2">
-          <Icon name="Home" size={16} className="text-text-secondary" />
-          <span className="text-text-secondary">Type:</span>
-          <span className="font-medium text-text-primary capitalize">{property?.property_type}</span>
-        </div>
-        
-      </div>
+{/* Property Type & Quick Info */}
+<div className="flex flex-wrap items-center gap-4 text-sm">
+  {/* Property Type */}
+  <div className="flex items-center space-x-2">
+    <Icon name="Home" size={16} className="text-text-secondary" />
+    <span className="text-text-secondary">Type:</span>
+    <span className="font-medium text-text-primary capitalize">{property?.property_type}</span>
+  </div>
+
+  {/* Property Status */}
+  <div className="flex items-center space-x-2">
+    <Icon name="CheckCircle" size={16} className="text-text-secondary" />
+    <span className="text-text-secondary">Status:</span>
+    <span className="font-medium text-text-primary capitalize">
+      <StatusBadge status={property.status} />
+    </span>
+  </div>
+
+  {/* Available From (only if occupied and available_from is present) */}
+  {property?.status === 'OCCUPIED' && property?.available_from && (
+    <div className="flex items-center space-x-2">
+      <Icon name="Calendar" size={16} className="text-text-secondary" />
+      <span className="text-text-secondary">Available From:</span>
+      <span className="font-medium text-text-primary">
+        {new Date(property.available_from).toLocaleDateString('en-GB', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })}
+      </span>
+    </div>
+  )}
+</div>
+
+
     </div>
   );
 };

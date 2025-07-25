@@ -7,16 +7,12 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { registerUser } from '../../../services/api';
 import { useToast } from '../../../contexts/ToastContext'; // Adjust path
 
-
-
-
-
 const AuthForm = ({ mode, onForgotPassword }) => {
   const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: '',  // Add this
+    confirmPassword: '',
     firstName: '',
     lastName: '',
     phone: '',
@@ -28,11 +24,8 @@ const AuthForm = ({ mode, onForgotPassword }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
-  const [fieldErrors, setFieldErrors] = useState({}); // <--- NEW STATE: For backend field-specific errors
+  const [fieldErrors, setFieldErrors] = useState({}); 
   const { showToast } = useToast();
-
-
-
 
   const phoneInputRef = useRef(null);
   const whatsappInputRef = useRef(null);
@@ -185,26 +178,25 @@ const AuthForm = ({ mode, onForgotPassword }) => {
     return /^(06|07)\d{8}$/.test(digits);
   };
 
-
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
     // Clear specific field error when user starts typing again
-    if (fieldErrors[name]) { // <--- NEW
-      setFieldErrors(prevErrors => { // <--- NEW
-        const newErrors = { ...prevErrors }; // <--- NEW
-        delete newErrors[name]; // <--- NEW
-        return newErrors; // <--- NEW
-      }); // <--- NEW
+    if (fieldErrors[name]) {
+      setFieldErrors(prevErrors => {
+        const newErrors = { ...prevErrors };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
     // Clear general errors on input change
-    setErrors({}); // <--- MODIFIED
+    setErrors({});
 
     // Special handling for role change: Convert to UPPERCASE for backend consistency
     if (name === 'role') {
       setFormData(prev => ({
         ...prev,
-        [name]: value.toUpperCase() // <--- MODIFIED: Convert to uppercase
+        [name]: value.toUpperCase()
       }));
       return;
     }
@@ -216,7 +208,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
     }));
   };
 
-const validateForm = () => {
+  const validateForm = () => {
     const newErrors = {};
 
     if (!formData.email) {
@@ -246,13 +238,14 @@ const validateForm = () => {
       }
 
       // WhatsApp number validation for brokers (check against UPPERCASE role)
-      if (formData.role === 'BROKER') { // <--- MODIFIED: Check against UPPERCASE
+      if (formData.role === 'BROKER') {
         if (!formData.whatsappNumber) {
           newErrors.whatsappNumber = 'WhatsApp number is required for brokers';
         } else if (!validateTzPhone(formData.whatsappNumber)) {
           newErrors.whatsappNumber = 'Invalid WhatsApp number. Format: 07XX XXX XXX or 06XX XXX XXX';
         }
       }
+
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = 'Please confirm your password';
       } else if (formData.password !== formData.confirmPassword) {
@@ -260,11 +253,23 @@ const validateForm = () => {
       }
     }
 
-    setFieldErrors(newErrors); // <--- MODIFIED: Use setFieldErrors for client-side validation
+    setFieldErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  
+  // Function to handle role-based dashboard redirection
+  const redirectToDashboard = (userRole) => {
+    switch (userRole.toUpperCase()) {
+      case 'TENANT':
+        navigate('/tenant-dashboard');
+        break;
+      case 'BROKER':
+        navigate('/broker-dashboard');
+        break;
+      default:
+        navigate('/dashboard'); // Fallback dashboard
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -272,47 +277,54 @@ const validateForm = () => {
     if (!validateForm()) return;
 
     setLoading(true);
-    setErrors({}); // Clear general errors
-    setFieldErrors({}); // <--- NEW: Clear specific field errors
+    setErrors({});
+    setFieldErrors({});
 
     try {
       if (mode === 'login') {
-        // ... (existing login logic, assuming it uses useAuth().login) ...
         const success = await login(
           formData.email,
           formData.password,
           formData.rememberMe,
           navigate
         );
-        showToast("Logged In, Welcome Back👌", "success");
-
-
-        if (!success) {
+        
+        if (success) {
+          // Custom toast here - login success
+          showToast("Logged In, Welcome Back👌", "success");
+        } else {
+          // Custom toast here - login failure
           showToast("Invalid email or password. Please try again.", "error");
           setErrors({
             submit: 'Invalid email or password. Please try again.'
           });
         }
       } else { // mode === 'register'
-        // Prepare data for backend (camelCase to snake_case mapping for phone/whatsapp, uppercase for role)
+        // Prepare data for backend - always include whatsappNumber field
         const payload = {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
           password: formData.password,
-          phone: formData.phone.replace(/\s/g, ''), // Clean and send as 'phone'
-          whatsappNumber: formData.whatsappNumber.replace(/\s/g, ''), // Clean and send as 'whatsappNumber'
-          role: formData.role // Already uppercase from handleInputChange
+          phone: formData.phone.replace(/\s/g, ''), // Clean phone number
+          role: formData.role, // Already uppercase from handleInputChange
+          // Always include whatsappNumber - empty for tenants, populated for brokers
+          whatsappNumber: formData.role === 'BROKER' 
+            ? formData.whatsappNumber.replace(/\s/g, '') 
+            : '' // Empty string for tenants
         };
 
-        // Call the new registerUser API function
-        const responseData = await registerUser(payload); // <--- MODIFIED: Use registerUser
+        // Call the registerUser API function
+        const responseData = await registerUser(payload);
+        
+        // Custom toast here - registration success
         showToast("Registration successful!", "success");
 
         setErrors({
           success: responseData.message || 'Registration successful!'
         });
-        // Optionally, clear form after successful registration
+
+        // Clear form after successful registration
         setFormData({
           email: '',
           password: '',
@@ -321,14 +333,18 @@ const validateForm = () => {
           lastName: '',
           phone: '',
           whatsappNumber: '',
-          role: 'TENANT', // Reset to default uppercase
+          role: 'TENANT',
           rememberMe: false
         });
-        // You might want to redirect to login page here after success
-        // navigate('/login');
+
+        // Redirect to role-based dashboard after successful registration
+        setTimeout(() => {
+          redirectToDashboard(formData.role);
+        }, 1500); // Small delay to show success message
       }
     } catch (error) {
       console.error("AuthForm Submission Error:", error);
+      
       if (error.status === 400 && error.data) {
         // Backend validation errors (e.g., email/phone exists, invalid format)
         const backendErrors = {};
@@ -337,24 +353,33 @@ const validateForm = () => {
           let frontendField = field;
           if (field === 'first_name') frontendField = 'firstName';
           else if (field === 'last_name') frontendField = 'lastName';
-          else if (field === 'phone_number') frontendField = 'phone'; // Backend expects phone_number
-          else if (field === 'whatsapp_number') frontendField = 'whatsappNumber'; // Backend expects whatsapp_number
+          else if (field === 'phone_number') frontendField = 'phone';
+          else if (field === 'whatsapp_number') frontendField = 'whatsappNumber';
 
           backendErrors[frontendField] = Array.isArray(message) ? message[0] : message;
         }
-        setFieldErrors(backendErrors); // <--- NEW: Set specific field errors
+        setFieldErrors(backendErrors);
+        
         if (error.data.detail) {
-          showToast({ submit: error.data.detail }, "error");
-          setErrors({ submit: error.data.detail }); // General error if backend sends 'detail'
+          // Custom toast here - backend detail error
+          showToast(error.data.detail, "error");
+          setErrors({ submit: error.data.detail });
         } else if (Object.keys(error.data).length > 0) {
-            setErrors({ submit: 'Please correct the errors in the form.' }); // Generic message for field errors
+          // Custom toast here - form validation errors
+          showToast('Please correct the errors in the form.', "error");
+          setErrors({ submit: 'Please correct the errors in the form.' });
         } else {
-            setErrors({ submit: 'Registration failed. An unknown error occurred.' }); // Fallback
+          // Custom toast here - unknown registration error
+          showToast('Registration failed. An unknown error occurred.', "error");
+          setErrors({ submit: 'Registration failed. An unknown error occurred.' });
         }
       } else {
         // Network errors or other unexpected errors
+        const errorMessage = error.message || 'Registration failed. Please check your details and try again.';
+        // Custom toast here - network/unexpected error
+        showToast(errorMessage, "error");
         setErrors({
-          submit: error.message || 'Registration failed. Please check your details and try again.'
+          submit: errorMessage
         });
       }
     } finally {
@@ -362,19 +387,21 @@ const validateForm = () => {
     }
   };
 
-// ... (rest of the component) ...
-
-
-
-
-
-// propms-frontend/src/AuthForm.jsx
-
-// ... (existing code) ...
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* ... (Success Message and General Submit Error Message remain the same) ... */}
+      {/* Success Message */}
+      {errors.success && (
+        <div className="p-3 rounded-md bg-success-50 border border-success-200">
+          <p className="text-sm text-success-700">{errors.success}</p>
+        </div>
+      )}
+
+      {/* General Submit Error Message */}
+      {errors.submit && (
+        <div className="p-3 rounded-md bg-error-50 border border-error-200">
+          <p className="text-sm text-error-700">{errors.submit}</p>
+        </div>
+      )}
 
       {/* Registration Fields */}
       {mode === 'register' && (
@@ -390,13 +417,14 @@ const validateForm = () => {
               value={formData.firstName}
               onChange={handleInputChange}
               placeholder="Enter your first name"
-              className={fieldErrors.firstName ? 'border-error-500 focus:ring-error-500' : ''} 
+              className={fieldErrors.firstName ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
               disabled={loading}
             />
             {fieldErrors.firstName && ( 
-              <p className="mt-1 text-sm text-error">{fieldErrors.firstName}</p>
+              <p className="mt-1 text-sm text-error-600">{fieldErrors.firstName}</p>
             )}
           </div>
+          
           <div>
             <label htmlFor="lastName" className="block text-sm font-medium text-text-primary mb-2">
               Last Name
@@ -408,11 +436,11 @@ const validateForm = () => {
               value={formData.lastName}
               onChange={handleInputChange}
               placeholder="Enter your last name"
-              className={fieldErrors.lastName ? 'border-error-500 focus:ring-error-500' : ''} 
+              className={fieldErrors.lastName ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
               disabled={loading}
             />
             {fieldErrors.lastName && ( 
-              <p className="mt-1 text-sm text-error">{fieldErrors.lastName}</p>
+              <p className="mt-1 text-sm text-error-600">{fieldErrors.lastName}</p>
             )}
           </div>
 
@@ -429,12 +457,12 @@ const validateForm = () => {
               onKeyDown={(e) => handlePhoneKeyDown(e, 'phone')}
               onPaste={(e) => handlePhonePaste(e, 'phone')}
               placeholder="07XX XXX XXX"
-              className={fieldErrors.phone ? 'border-error-500 focus:ring-error-500' : ''} 
+              className={fieldErrors.phone ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
               disabled={loading}
               ref={phoneInputRef}
             />
             {fieldErrors.phone && (
-              <p className="mt-1 text-sm text-error">{fieldErrors.phone}</p>
+              <p className="mt-1 text-sm text-error-600">{fieldErrors.phone}</p>
             )}
           </div>
 
@@ -453,12 +481,12 @@ const validateForm = () => {
                 onKeyDown={(e) => handlePhoneKeyDown(e, 'whatsappNumber')}
                 onPaste={(e) => handlePhonePaste(e, 'whatsappNumber')}
                 placeholder="07XX XXX XXX"
-                className={fieldErrors.whatsappNumber ? 'border-error-500 focus:ring-error-500' : ''} 
+                className={fieldErrors.whatsappNumber ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
                 disabled={loading}
                 ref={whatsappInputRef}
               />
               {fieldErrors.whatsappNumber && ( 
-                <p className="mt-1 text-sm text-error">{fieldErrors.whatsappNumber}</p>
+                <p className="mt-1 text-sm text-error-600">{fieldErrors.whatsappNumber}</p>
               )}
             </div>
           )}
@@ -477,11 +505,11 @@ const validateForm = () => {
           value={formData.email}
           onChange={handleInputChange}
           placeholder="Enter your email"
-          className={fieldErrors.email ? 'border-error-500 focus:ring-error-500' : ''} 
+          className={fieldErrors.email ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
           disabled={loading}
         />
         {fieldErrors.email && (
-          <p className="mt-1 text-sm text-error">{fieldErrors.email}</p>
+          <p className="mt-1 text-sm text-error-600">{fieldErrors.email}</p>
         )}
       </div>
 
@@ -498,7 +526,7 @@ const validateForm = () => {
             value={formData.password}
             onChange={handleInputChange}
             placeholder="Enter your password"
-            className={`pr-10 ${fieldErrors.password ? 'border-error-500 focus:ring-error-500' : ''}`} 
+            className={`pr-10 ${fieldErrors.password ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'}`} 
             disabled={loading}
           />
           <button
@@ -511,7 +539,7 @@ const validateForm = () => {
           </button>
         </div>
         {fieldErrors.password && ( 
-          <p className="mt-1 text-sm text-error">{fieldErrors.password}</p>
+          <p className="mt-1 text-sm text-error-600">{fieldErrors.password}</p>
         )}
       </div>
 
@@ -529,7 +557,7 @@ const validateForm = () => {
               value={formData.confirmPassword}
               onChange={handleInputChange}
               placeholder="Confirm your password"
-              className={`pr-10 ${fieldErrors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`} 
+              className={`pr-10 ${fieldErrors.confirmPassword ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'}`} 
               disabled={loading}
             />
             <button
@@ -542,7 +570,7 @@ const validateForm = () => {
             </button>
           </div>
           {fieldErrors.confirmPassword && ( 
-            <p className="mt-1 text-sm text-error">{fieldErrors.confirmPassword}</p>
+            <p className="mt-1 text-sm text-error-600">{fieldErrors.confirmPassword}</p>
           )}
         </div>
       )}
@@ -565,7 +593,9 @@ const validateForm = () => {
                 disabled={loading}
               />
               <div className={`flex-1 p-3 rounded-md border-2 text-center transition-all ${
-                formData.role === 'TENANT' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
+                formData.role === 'TENANT' 
+                  ? 'border-primary bg-primary-50 text-primary' 
+                  : 'border-border text-text-secondary hover:border-secondary-300'
               }`}>
                 <Icon name="User" size={20} className="mx-auto mb-1" />
                 <span className="text-sm font-medium">Tenant</span>
@@ -582,7 +612,9 @@ const validateForm = () => {
                 disabled={loading}
               />
               <div className={`flex-1 p-3 rounded-md border-2 text-center transition-all ${
-                formData.role === 'BROKER' ?'border-primary bg-primary-50 text-primary' :'border-border text-text-secondary hover:border-secondary-300'
+                formData.role === 'BROKER' 
+                  ? 'border-primary bg-primary-50 text-primary' 
+                  : 'border-border text-text-secondary hover:border-secondary-300'
               }`}>
                 <Icon name="Briefcase" size={20} className="mx-auto mb-1" />
                 <span className="text-sm font-medium">Broker</span>

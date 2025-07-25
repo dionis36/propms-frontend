@@ -6,7 +6,7 @@ import StatusBadge from '../../../components/StatusBadge';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { saveFavorite, removeFavorite } from '../../../services/api';
-
+import UserAvatar from '../../../components/ui/UserAvatar'; // Adjust the path as per your project structure
 
 
 const PropertyCard = ({ 
@@ -17,9 +17,13 @@ const PropertyCard = ({
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(null);
   const { showToast } = useToast();
   const { accessToken, user } = useAuth();
-
+  const agentFullName = property.agent.name;
+  const nameParts = agentFullName.split(' ');
+  const firstName = nameParts[0];
+  const lastName = nameParts[nameParts.length - 1]; // More robust for last name
 
   // Backup images if property has no images
   const defaultImages = [
@@ -49,40 +53,49 @@ const PropertyCard = ({
     return num ? new Intl.NumberFormat('en-US').format(num) : 'N/A';
   };
 
-const handleSave = async (e) => {
-  e.preventDefault();
-  e.stopPropagation();
+  const copyToClipboard = async (phoneNumber, propertyId) => {
+    try {
+      await navigator.clipboard.writeText(phoneNumber);
+      setCopiedPhone(propertyId);
+      showToast('Phone number copied!', 'success');
+      setTimeout(() => setCopiedPhone(null), 2000);
+    } catch (error) {
+      showToast('Failed to copy phone number', 'error');
+    }
+  };
 
-  // 1. Not logged in
-  if (!user || !accessToken) {
-    showToast('Login to save favorites.', 'error');
-    return;
-  }
+  const handleSave = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-  // 2. Logged in, but not a tenant
-  if (user && user.role !== 'TENANT') {
-    showToast('Only tenants can save favorites.', 'error');
-    return;
-  }
-
-
-  try {
-    if (!property?.isSaved) {
-      await saveFavorite(property.id, accessToken);
-      showToast('Property saved to favorites!', 'success');
-    } else {
-      await removeFavorite(property.id, accessToken);
-      showToast('Removed from favorites.', 'info');
+    // 1. Not logged in
+    if (!user || !accessToken) {
+      showToast('Login to save favorites.', 'error');
+      return;
     }
 
-    // Optional: toggle state in parent
-    onSave?.(property.id, !property.isSaved);
-  } catch (error) {
-    console.error('Favorite error:', error);
-    showToast(error.message || 'Failed to update favorite.', 'error');
-  }
-};
+    // 2. Logged in, but not a tenant
+    if (user && user.role !== 'TENANT') {
+      showToast('Only tenants can save favorites.', 'error');
+      return;
+    }
 
+    try {
+      if (!property?.isSaved) {
+        await saveFavorite(property.id, accessToken);
+        showToast('Property saved to favorites!', 'success');
+      } else {
+        await removeFavorite(property.id, accessToken);
+        showToast('Removed from favorites.', 'info');
+      }
+
+      // Optional: toggle state in parent
+      onSave?.(property.id, !property.isSaved);
+    } catch (error) {
+      console.error('Favorite error:', error);
+      showToast(error.message || 'Failed to update favorite.', 'error');
+    }
+  };
 
   const handleImageNavigation = (direction, e) => {
     e.preventDefault();
@@ -96,14 +109,6 @@ const handleSave = async (e) => {
       setCurrentImageIndex((prev) => 
         prev === 0 ? displayImages?.length - 1 : prev - 1
       );
-    }
-  };
-
-  const handleContactAgent = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (property?.agent?.phone) {
-      window.open(`tel:${property.agent.phone}`, '_self');
     }
   };
 
@@ -228,34 +233,46 @@ const handleSave = async (e) => {
                   </div>
                 )}
               </div>
-
-              {/* Agent Info & Actions */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {property?.agent?.name && (
-                    <>
-                      <div className="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8" />
-                      <span className="text-sm text-text-secondary">
-                        {property.agent.name}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {isHovered && (
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={handleContactAgent}
-                      className="px-3 py-1.5 bg-accent-100 text-accent-600 rounded-md text-sm font-medium hover:bg-accent-500 hover:text-white transition-all duration-200 ease-out"
-                    >
-                      Contact
-                    </button>
-                    <button className="px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary-700 transition-all duration-200 ease-out">
-                      Tour
-                    </button>
-                  </div>
+            </div>
+          </div>
+          
+          {/* Agent Details Section - Placed below main content */}
+          <div className="pt-3 mt-3 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {property?.agent?.name && (
+                  <>
+                    {/* <div className="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8 flex-shrink-0" /> */}
+                    <UserAvatar firstName={firstName}  lastName={lastName} size="w-10 h-10 text-base"/>
+                    <span className="text-sm text-text-secondary truncate max-w-[120px] sm:max-w-[200px]">
+                      {property.agent.name}
+                    </span>
+                  </>
                 )}
               </div>
+
+              {property?.agent?.phone && (
+                <div className="flex items-center space-x-1 bg-surface rounded-md pl-2 pr-1 py-1">
+                  <span className="text-sm text-text-secondary truncate max-w-[100px] sm:max-w-[150px]">
+                    {property.agent.phone}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      copyToClipboard(property.agent.phone, property.id);
+                    }}
+                    className="p-1 rounded-md hover:bg-surface-300 transition-colors duration-200"
+                    title="Copy phone number"
+                  >
+                    {copiedPhone === property.id ? (
+                      <Icon name="Check" size={14} className="text-green-500" />
+                    ) : (
+                      <Icon name="Copy" size={14} className="text-text-secondary" />
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -263,7 +280,7 @@ const handleSave = async (e) => {
     );
   }
 
-  // Card Variant (Default)
+  // Card Variant (Default) - Unchanged
   return (
     <Link
       to={`/property-details?id=${property?.id}`}
@@ -381,38 +398,85 @@ const handleSave = async (e) => {
         </div>
 
         {/* Agent Info */}
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="flex items-center space-x-2">
-            {property?.agent?.name && (
-              <>
-                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8" />
-                <div>
-                  <p className="text-sm font-medium text-text-primary">
-                    {property.agent.name}
-                  </p>
-                  {property?.agent?.phone && (
-                    <p className="text-xs text-text-secondary">
-                      {property.agent.phone}
+        <div className="pt-3 border-t border-border">
+          {/* Mobile Layout */}
+          <div className="flex items-center justify-between sm:hidden">
+            <div className="flex items-center space-x-2 flex-1 min-w-0">
+              {property?.agent?.name && (
+                <>
+                  {/* <div className="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8 flex-shrink-0" /> */}
+                  <UserAvatar firstName={firstName}  lastName={lastName} size="w-10 h-10 text-base"/>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-text-primary truncate">
+                      {property.agent.name}
                     </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {property?.agent?.phone && (
+              <div className="flex items-center space-x-2 text-sm text-text-secondary ml-2 flex-shrink-0">
+                <span>{property.agent.phone}</span>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    copyToClipboard(property.agent.phone, property.id);
+                  }}
+                  className="p-1 text-text-secondary hover:text-primary-700 hover:bg-primary-50 rounded-full transition-colors duration-200"
+                  title="Copy phone number"
+                >
+                  {copiedPhone === property.id ? (
+                    <Icon name="Check" size={12} className="text-green-500" />
+                  ) : (
+                    <Icon name="Copy" size={12} />
                   )}
-                </div>
-              </>
+                </button>
+              </div>
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
-            {property?.agent?.phone && (
-              <button
-                onClick={handleContactAgent}
-                className="p-2 bg-accent-100 text-accent-600 rounded-md hover:bg-accent-500 hover:text-white transition-all duration-200 ease-out"
-              >
-                <Icon name="Phone" size={16} />
-              </button>
-            )}
-            <button className="p-2 bg-primary text-white rounded-md hover:bg-primary-700 transition-all duration-200 ease-out">
-              <Icon name="Calendar" size={16} />
-            </button>
-          </div>
+          {/* Wide Screen Layout */}
+          {/* <div className="hidden sm:block">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {property?.agent?.name && (
+                  <>
+                    <UserAvatar firstName={firstName}  lastName={lastName} size="w-12 h-12 text-lg"/>
+                    
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">
+                        {property.agent.name}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {property?.agent?.phone && (
+                <div className="flex items-center space-x-2 text-sm text-text-secondary">
+                  <span>{property.agent.phone}</span>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      copyToClipboard(property.agent.phone, property.id);
+                    }}
+                    className="p-1 text-text-secondary hover:text-primary-700 hover:bg-primary-50 rounded-full transition-colors duration-200"
+                    title="Copy phone number"
+                  >
+                    {copiedPhone === property.id ? (
+                      <Icon name="Check" size={12} className="text-green-500" />
+                    ) : (
+                      <Icon name="Copy" size={12} />
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div> */}
+
         </div>
       </div>
     </Link>

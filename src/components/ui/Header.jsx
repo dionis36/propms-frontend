@@ -4,6 +4,7 @@ import Icon from '../AppIcon';
 import { useAuth } from '../../contexts/AuthContext'; // Added AuthContext import
 import UserAvatar from '../ui/UserAvatar'; // Added UserAvatar import
 import { useToast } from '../../contexts/ToastContext'; // Adjust path
+import StatusBadge from '../StatusBadge';
 
 
 
@@ -112,8 +113,17 @@ const userMenuItems = [
 
   return (
     <>
+      {/* Backdrop blur overlay for mobile menu */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-md z-[9998] md:hidden"
+          style={{ backdropFilter: 'blur(8px) saturate(150%)' }}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      
       {/* Header with backdrop blur */}
-      <header className="fixed top-0 left-0 right-0 backdrop-blur-sm bg-surface/90 border-b border-border/50 z-header">
+      <header className="fixed top-0 left-0 right-0 backdrop-blur-sm bg-surface/90 border-b border-border/50 z-[9999]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-18">
             {/* Logo */}
@@ -207,41 +217,44 @@ const userMenuItems = [
                     />
                   </button>
 
-                  {/* User Dropdown */}
-                  {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-surface rounded-md shadow-elevation-3 
-                                  border border-border z-dropdown">
-                      <div className="px-4 py-3 border-b border-border">
-                        <p className="text-sm font-medium text-text-primary">
-                          {(user?.first_name || '') + ' ' + (user?.last_name || '') || 'User'}
-                        </p>
-                        <p className="text-xs text-text-secondary capitalize">{user?.role || 'user'}</p>
-                      </div>
-                      <div className="py-1">
-                        {userMenuItems.map((item) => (
-                          <div key={item.label}>
-                            {item.path ? (
-                              <Link
-                                to={item.path}
-                                className="flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
-                              >
-                                <Icon name={item.icon} size={16} />
-                                <span>{item.label}</span>
-                              </Link>
-                            ) : (
-                              <button
-                                onClick={() => handleUserAction(item.action)}
-                                className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
-                              >
-                                <Icon name={item.icon} size={16} />
-                                <span>{item.label}</span>
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                  {/* User Dropdown with smooth animation */}
+                  <div className={`absolute right-0 mt-2 w-56 bg-surface rounded-md shadow-elevation-3 
+                                border border-border z-dropdown transition-all duration-300 ease-out origin-top-right
+                                ${isUserMenuOpen 
+                                  ? 'opacity-100 scale-100 translate-y-0' 
+                                  : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                                }`}>
+                    <div className="px-4 py-3 border-b border-border">
+                      <p className="text-sm font-medium text-text-primary">
+                        {(user?.first_name || '') + ' ' + (user?.last_name || '') || 'User'}
+                      </p>
+
+                      <p className="text-xs text-text-secondary capitalize"><StatusBadge status={user?.role}></StatusBadge></p>
                     </div>
-                  )}
+                    <div className="py-1">
+                      {userMenuItems.map((item) => (
+                        <div key={item.label}>
+                          {item.path ? (
+                            <Link
+                              to={item.path}
+                              className="flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
+                            >
+                              <Icon name={item.icon} size={16} />
+                              <span>{item.label}</span>
+                            </Link>
+                          ) : (
+                            <button
+                              onClick={() => handleUserAction(item.action)}
+                              className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
+                            >
+                              <Icon name={item.icon} size={16} />
+                              <span>{item.label}</span>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="hidden md:flex items-center space-x-3">
@@ -297,11 +310,15 @@ const userMenuItems = [
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
+        {/* Mobile Menu with smooth animation and backdrop blur */}
+        <div className={`md:hidden transition-all duration-300 ease-out ${
+          isMobileMenuOpen 
+            ? 'max-h-screen opacity-100' 
+            : 'max-h-0 opacity-0 overflow-hidden'
+        }`}>
           <div 
             ref={mobileMenuRef}
-            className="md:hidden bg-surface/90 backdrop-blur-sm border-t border-border/50 z-mobile-menu"
+            className="bg-surface/98 backdrop-blur-lg border-t border-border/50 z-[9999] shadow-lg"
           >
             {/* Add user info section for mobile */}
             {isAuthenticated && (
@@ -309,7 +326,7 @@ const userMenuItems = [
                 <p className="text-sm font-medium text-text-primary">
                   {(user?.first_name || '') + ' ' + (user?.last_name || '') || 'User'}
                 </p>
-                <p className="text-xs text-text-secondary capitalize">{user?.role || 'user'}</p>
+                <p className="text-xs text-text-secondary capitalize"><StatusBadge status={user?.role}></StatusBadge></p>
               </div>
             )}
             
@@ -386,7 +403,7 @@ const userMenuItems = [
               )}
             </div>
           </div>
-        )}
+        </div>
       </header>
     </>
   );

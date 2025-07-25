@@ -384,7 +384,6 @@ const handleSave = async (e) => {
                             <Icon name="Copy" size={12} />
                           )}
                         </button>
-                        {/* Removed the "Copied!" text message as per your request */}
                       </div>
                     )}
                   </div>

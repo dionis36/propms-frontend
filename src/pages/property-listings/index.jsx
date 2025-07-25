@@ -49,7 +49,6 @@ const PropertyListings = () => {
       agent: {
         name: property.agent_name,
         phone: property.agent_phone_number,
-        avatar: "https://randomuser.me/api/portraits/men/1.jpg" // Placeholder
       },
       coordinates: { 
         lat: parseFloat(property.latitude), 
@@ -118,14 +117,16 @@ const PropertyListings = () => {
     }
 
     if (minPrice) {
+      const minPriceNum = parseFloat(minPrice);
       filtered = filtered.filter(property =>
-        property.price >= parseInt(minPrice)
+        property.price >= minPriceNum
       );
     }
 
     if (maxPrice) {
+      const maxPriceNum = parseFloat(maxPrice);
       filtered = filtered.filter(property =>
-        property.price <= parseInt(maxPrice)
+        property.price <= maxPriceNum
       );
     }
 
@@ -176,12 +177,17 @@ const PropertyListings = () => {
     setCurrentPage(1); // Reset to first page when sorting changes
   };
 
-  // Handle filter changes
+  // Handle filter changes - Fixed to not include empty amenities
   const handleFilterChange = (filters) => {
     const newSearchParams = new URLSearchParams();
     
     Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== '' && value !== 'all') {
+      if (key === 'amenities') {
+        // Only add amenities if array has items
+        if (Array.isArray(value) && value.length > 0) {
+          newSearchParams.set(key, JSON.stringify(value));
+        }
+      } else if (value && value !== '' && value !== 'all') {
         newSearchParams.set(key, value);
       }
     });
@@ -201,11 +207,18 @@ const PropertyListings = () => {
     ));
   };
 
-  // Handle keyword search
+  // Handle keyword search - Modified for real-time search
   const handleKeywordSearch = (e) => {
     if (e.key === 'Enter' || e.type === 'click') {
       handleFilterChange({ ...Object.fromEntries(searchParams), query: searchKeyword });
     }
+  };
+
+  // Handle real-time search input change
+  const handleSearchInputChange = (value) => {
+    setSearchKeyword(value);
+    // Apply filter immediately as user types
+    handleFilterChange({ ...Object.fromEntries(searchParams), query: value });
   };
 
   // Handle page change
@@ -219,7 +232,7 @@ const PropertyListings = () => {
     window.scrollTo(0, 0);
   };
 
-  // Get breadcrumb items
+  // Get breadcrumbs
   const getBreadcrumbs = () => {
     const breadcrumbs = [
       { label: 'Home', path: '/homepage' },
@@ -257,34 +270,9 @@ const PropertyListings = () => {
       <Header />
       
       <main className="pt-16 lg:pt-18">
-        {/* Breadcrumb */}
-        <div className="bg-surface border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <nav className="flex items-center space-x-2 text-sm">
-              {getBreadcrumbs().map((crumb, index) => (
-                <React.Fragment key={index}>
-                  {index > 0 && (
-                    <Icon name="ChevronRight" size={14} className="text-text-secondary" />
-                  )}
-                  {crumb.path ? (
-                    <Link
-                      to={crumb.path}
-                      className="text-text-secondary hover:text-text-primary transition-colors duration-200"
-                    >
-                      {crumb.label}
-                    </Link>
-                  ) : (
-                    <span className="text-text-primary font-medium">{crumb.label}</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </nav>
-          </div>
-        </div>
-
         {/* Search Results Header */}
         <div className="bg-surface border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-text-primary">
@@ -296,15 +284,67 @@ const PropertyListings = () => {
                 </p>
               </div>
 
-              <div className="flex items-center space-x-3">
+              {/* Mobile Controls */}
+              <div className="flex sm:hidden items-center space-x-2">
+                {/* Mobile Search Input */}
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    className="pl-10 pr-4 py-3 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full"
+                    placeholder="Search..."
+                    value={searchKeyword}
+                    onChange={(e) => handleSearchInputChange(e.target.value)}
+                    onKeyDown={handleKeywordSearch}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Icon name="Search" size={16} className="text-text-secondary" />
+                  </div>
+                </div>
+
+                {/* Mobile View Toggle */}
+                <div className="flex bg-secondary-100 rounded-md p-1">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded text-sm font-medium transition-all duration-200 ${
+                      viewMode === 'list' ?'bg-surface text-text-primary shadow-sm' :'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <Icon name="List" size={16} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('map')}
+                    className={`p-2 rounded text-sm font-medium transition-all duration-200 ${
+                      viewMode === 'map' ?'bg-surface text-text-primary shadow-sm' :'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <Icon name="Map" size={16} />
+                  </button>
+                </div>
+
+                {/* Mobile Sort Dropdown */}
+                <div className="h-12">
+                  <SortDropdown value={sortBy} onChange={handleSortChange} />
+                </div>
+
+                {/* Mobile Filter Button */}
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  className="flex items-center justify-center h-12 w-12 bg-primary text-white rounded-md hover:bg-primary-700 transition-all duration-200 ease-out micro-interaction"
+                >
+                  <Icon name="SlidersHorizontal" size={16} />
+                </button>
+              </div>
+
+              {/* Desktop Controls */}
+              <div className="hidden sm:flex items-center space-x-3">
                 {/* Keyword Search */}
-                <div className="relative hidden sm:block">
+                <div className="relative">
                   <input
                     type="text"
                     className="pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64"
                     placeholder="Search by keyword..."
                     value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
+                    onChange={(e) => handleSearchInputChange(e.target.value)}
                     onKeyDown={handleKeywordSearch}
                   />
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -365,14 +405,15 @@ const PropertyListings = () => {
                 minPrice: searchParams.get('minPrice') || '',
                 maxPrice: searchParams.get('maxPrice') || '',
                 bedrooms: searchParams.get('bedrooms') || '',
-                bathrooms: searchParams.get('bathrooms') || ''
+                bathrooms: searchParams.get('bathrooms') || '',
+                amenities: searchParams.get('amenities') ? JSON.parse(searchParams.get('amenities')) : []
               }}
             />
 
             {/* Content Area */}
             <div className="flex-1 min-w-0">
               {/* Desktop Split View */}
-              <div className="hidden lg:flex h-[calc(100vh-200px)]">
+              <div className="hidden lg:flex h-[calc(100vh-160px)]">
                 {/* Property List */}
                 <div className="w-3/5 overflow-y-auto" ref={desktopListRef}>
                   <div className="p-6">
@@ -660,7 +701,7 @@ const PropertyListings = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="h-[calc(100vh-200px)]">
+                  <div className="h-[calc(100vh-160px)]">
                     <MapView
                       properties={filteredProperties}
                       selectedProperty={selectedProperty}

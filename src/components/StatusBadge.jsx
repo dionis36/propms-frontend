@@ -3,13 +3,14 @@ import React from 'react';
 
 const StatusBadge = ({ status, className = '' }) => {
   const badgeMap = {
-    VACANT: { label: 'Vacant', bg: 'bg-success-100', text: 'text-success' },
+    AVAILABLE: { label: 'Available', bg: 'bg-success-100', text: 'text-success' },
     OCCUPIED: { label: 'Occupied', bg: 'bg-error-100', text: 'text-error' },
     VERIFIED: { label: 'Verified', bg: 'bg-success-100', text: 'text-success' },
     UNVERIFIED: { label: 'Unverified', bg: 'bg-warning-100', text: 'text-warning' },
-    ADMIN: { label: 'Admin', bg: 'bg-primary-100', text: 'text-primary' },
+    ADMIN: { label: 'Admin', bg: 'bg-secondary-300', text: 'text-secondary-900' },
     BROKER: { label: 'Broker', bg: 'bg-accent-100', text: 'text-accent' },
-    TENANT: { label: 'Tenant', bg: 'bg-secondary-100', text: 'text-secondary-700' },
+    TENANT: { label: 'Tenant', bg: 'bg-primary-100', text: 'text-primary' },
+    // ADMIN: { label: 'Admin', bg: 'bg-secondary-100', text: 'text-secondary-700' },
   };
 
   const badgeConfig = badgeMap[status] || {

@@ -144,7 +144,8 @@ const metrics = {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left: Welcome and Metrics - 3/4 width */}
           <div className="lg:col-span-3 space-y-6">
-            <WelcomeBanner 
+            <WelcomeBanner
+              user = {user}
               name={user?.first_name} 
               vacantListings={metrics.vacantListings} 
             />

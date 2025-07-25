@@ -1,5 +1,7 @@
 // pages/agent-dashboard/components/WelcomeBanner.jsx
-export default function WelcomeBanner({ name, vacantListings }) {
+import StatusBadge from '../../../components/StatusBadge';
+
+export default function WelcomeBanner({ name, user }) {
   const today = new Date();
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   const dateString = today.toLocaleDateString('en-US', options);
@@ -17,20 +19,32 @@ export default function WelcomeBanner({ name, vacantListings }) {
           </p>
         </div>
         
-        {vacantListings > 0 ? (
-          <div className="mt-4 md:mt-0 bg-warning-100 text-warning rounded-lg px-4 py-2">
-            <p className="font-medium">
-              You have {vacantListings} vacant {vacantListings === 1 ? 'listing' : 'listings'}
-            </p>
-          </div>
-        ) : (
-          <div className="mt-4 md:mt-0 bg-success-100 text-success rounded-lg px-4 py-2">
-            <p className="font-medium">
-              All listings occupied! Great work!
-            </p>
-          </div>
-        )}
+        <div className="mt-4 md:mt-0">
+          <StatusBadge status={user?.is_verified ? 'VERIFIED' : 'UNVERIFIED'} />
+        </div>
       </div>
+      
+     {!user?.is_verified && (
+        <div className="bg-warning-100 text-warning rounded-lg px-4 py-2 mt-4">
+          <p className="font-medium">
+            <strong>⏳ Awaiting Verification:</strong> Your account is pending broker approval.
+            You won't be able to upload properties until verified.
+          </p>
+        </div>
+      )}
+
     </div>
   );
 }
+
+{/* 
+********** USAGE ************* 
+
+import StatusBadge from '../src/components/StatusBadge'; // Adjust path as needed
+
+
+<p>Status: <StatusBadge status={property.status} /></p>
+<p>User Role: <StatusBadge status="ADMIN" className="mt-2" /></p>
+<p>Verification: <StatusBadge status="UNVERIFIED" /></p> 
+
+*/}

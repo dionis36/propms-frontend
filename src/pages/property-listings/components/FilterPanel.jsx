@@ -45,12 +45,12 @@ const FilterPanel = ({
 
   const priceRanges = [
     { min: '', max: '', label: 'Any Price' },
-    { min: '0', max: '300000', label: 'Under $300K' },
-    { min: '300000', max: '500000', label: '$300K - $500K' },
-    { min: '500000', max: '750000', label: '$500K - $750K' },
-    { min: '750000', max: '1000000', label: '$750K - $1M' },
-    { min: '1000000', max: '1500000', label: '$1M - $1.5M' },
-    { min: '1500000', max: '', label: 'Over $1.5M' }
+    { min: '0', max: '150000', label: 'Under Tsh 150K' },
+    { min: '150000', max: '250000', label: 'Tsh 150K - 250K' },
+    { min: '250000', max: '350000', label: 'Tsh 250K - 350K' },
+    { min: '350000', max: '550000', label: 'Tsh 350K - 550K' },
+    { min: '550000', max: '750000', label: 'Tsh 550K - 750K' },
+    { min: '750000', max: '', label: 'Over Tsh 750K' }
   ];
 
   const amenitiesList = [
@@ -79,17 +79,21 @@ const FilterPanel = ({
     setFilters(prev => ({ ...prev, ...initialFilters }));
   }, [initialFilters]);
 
-  // Close panel when clicking outside on mobile
+  // Close panel when clicking outside on mobile only
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (panelRef.current && !panelRef.current.contains(event.target) && isOpen) {
+      // Only close on outside click for mobile (screen width < 1024px)
+      if (window.innerWidth < 1024 && panelRef.current && !panelRef.current.contains(event.target) && isOpen) {
         onClose();
       }
     };
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'hidden'; // Prevent background scroll on mobile
+      // Only prevent background scroll on mobile
+      if (window.innerWidth < 1024) {
+        document.body.style.overflow = 'hidden';
+      }
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -165,9 +169,9 @@ const FilterPanel = ({
   const formatPrice = (price) => {
     if (!price) return '';
     const num = parseInt(price);
-    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `$${(num / 1000)}K`;
-    return `$${num}`;
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000)}K`;
+    return `${num}`;
   };
 
   return (
@@ -184,21 +188,21 @@ const FilterPanel = ({
       <div 
         ref={panelRef}
         className={`
-          fixed lg:relative top-0 left-0 h-full w-full max-w-sm lg:max-w-none lg:w-80 
+          fixed lg:relative top-0 left-0 h-full w-80 lg:w-80 
           bg-surface border-r border-border z-50 lg:z-auto
           transform transition-all duration-300 ease-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${isOpen ? 'lg:block' : 'lg:hidden'}
-          lg:shadow-none shadow-elevation-4
+          lg:shadow-none shadow-elevation-4 lg:h-[calc(100vh-160px)]
         `}
       >
         <div className="h-full flex flex-col">
-          {/* Mobile Header */}
-          <div className="flex lg:hidden items-center justify-between p-4 border-b border-border bg-surface sticky top-0 z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border bg-surface flex-shrink-0">
             <div className="flex items-center space-x-3">
               <button
                 onClick={onClose}
-                className="p-2 -ml-2 text-text-secondary hover:text-text-primary transition-colors duration-200"
+                className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-text-primary transition-colors duration-200"
               >
                 <Icon name="ArrowLeft" size={20} />
               </button>
@@ -209,38 +213,27 @@ const FilterPanel = ({
                 </span>
               )}
             </div>
-            {hasActiveFilters && (
-              <button
-                onClick={clearAllFilters}
-                className="text-sm text-primary hover:text-primary-700 font-medium transition-colors duration-200"
-              >
-                Clear All
-              </button>
-            )}
-          </div>
-
-          {/* Desktop Header */}
-          <div className="hidden lg:flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-semibold text-text-primary">Filters</h2>
-              {getActiveFilterCount() > 0 && (
-                <span className="bg-primary text-white text-xs font-medium px-2 py-1 rounded-full">
-                  {getActiveFilterCount()}
-                </span>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-primary hover:text-primary-700 font-medium transition-colors duration-200"
+                >
+                  Clear All
+                </button>
               )}
-            </div>
-            {hasActiveFilters && (
+              {/* Desktop Close Button */}
               <button
-                onClick={clearAllFilters}
-                className="text-sm text-primary hover:text-primary-700 font-medium transition-colors duration-200"
+                onClick={onClose}
+                className="hidden lg:flex p-1.5 text-text-secondary hover:text-text-primary transition-colors duration-200 hover:bg-secondary-100 rounded-md"
               >
-                Clear All
+                <Icon name="X" size={16} />
               </button>
-            )}
+            </div>
           </div>
 
-          {/* Filter Content */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Filter Content - Fixed scrolling issue */}
+          <div className="flex-1 overflow-y-auto min-h-0">
             <div className="p-4 space-y-6">
 
               {/* Search & Location */}
@@ -658,38 +651,9 @@ const FilterPanel = ({
               </div>
             </div>
           </div>
-
-          {/* Mobile Footer Actions */}
-          <div className="lg:hidden border-t border-border bg-surface p-4 sticky bottom-0">
-            <div className="flex space-x-3">
-              <button
-                onClick={clearAllFilters}
-                className="flex-1 px-4 py-3 border border-border text-text-primary rounded-lg
-                         font-medium transition-all duration-200 hover:bg-secondary-100
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!hasActiveFilters}
-              >
-                Reset
-              </button>
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-3 bg-primary text-white rounded-lg
-                         font-medium transition-all duration-200 hover:bg-primary-700
-                         flex items-center justify-center space-x-2"
-              >
-                <span>Show Results</span>
-                {getActiveFilterCount() > 0 && (
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                    {getActiveFilterCount()}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </>
-  );
-};
+)};
 
 export default FilterPanel;
