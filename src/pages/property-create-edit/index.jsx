@@ -134,7 +134,7 @@ const loadPropertyData = async (propertyId) => {
       longitude: parseFloat(property.longitude),
       amenities: Array.isArray(property.amenities)
         ? property.amenities
-        : JSON.parse(property.amenities[0] || '[]'),
+        : JSON.parse(property.amenities || '[]'),
       availableFrom: property.available_from || '',
       images: property.media
         .filter(media => media.image)

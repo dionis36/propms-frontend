@@ -150,6 +150,12 @@ export const getAllProperties = async () => {
   return makeRequest(`${API_BASE}/api/properties/`, 'GET', null, null);
 };
 
+// export const getFilteredProperties = async (params = {}) => {
+//   const queryString = new URLSearchParams(params).toString();
+//   return makeRequest(`${API_BASE}/api/properties/?${queryString}`, 'GET');
+// };
+
+
 // Save a property to favorites
 export const saveFavorite = (propertyId, accessToken) => {
   return makeRequest(`${API_BASE}/api/favorites/`, 'POST', { property_id: propertyId }, accessToken);
