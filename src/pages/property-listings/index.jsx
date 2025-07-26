@@ -31,123 +31,466 @@ const PropertyListings = () => {
   const currentProperties = filteredProperties.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
 
-  // Format API response to match frontend structure
-  const formatListings = (apiData) => {
-    return apiData.map(property => ({
+  // DEBUGGING CHECKLIST FOR PROPERTY LISTINGS NOT DISPLAYING
+
+// 1. API RESPONSE DEBUGGING
+// Add this to your fetchProperties function in useEffect:
+
+useEffect(() => {
+  const fetchProperties = async () => {
+    setLoading(true);
+    try {
+      console.log('🔍 Fetching properties from API...');
+      const data = await getAllProperties();
+      
+      // DEBUG: Log the raw API response
+      console.log('📥 Raw API Response:', data);
+      console.log('📊 Response type:', typeof data);
+      console.log('📋 Response length:', Array.isArray(data) ? data.length : 'Not an array');
+      
+      if (!data || !Array.isArray(data)) {
+        console.error('❌ API response is not an array:', data);
+        setError('Invalid data format received from server');
+        return;
+      }
+      
+      if (data.length === 0) {
+        console.warn('⚠️ API returned empty array');
+        setProperties([]);
+        setFilteredProperties([]);
+        return;
+      }
+      
+      // DEBUG: Log first property structure
+      console.log('🏠 First property structure:', data[0]);
+      
+      const formattedProperties = formatListings(data);
+      console.log('✅ Formatted properties:', formattedProperties);
+      console.log('📊 Formatted length:', formattedProperties.length);
+      
+      setProperties(formattedProperties);
+      applyFilters(formattedProperties);
+      setError(null);
+    } catch (err) {
+      console.error('💥 Error fetching properties:', err);
+      console.error('📋 Error details:', {
+        message: err.message,
+        stack: err.stack,
+        response: err.response
+      });
+      setError('Failed to load properties. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProperties();
+}, []);
+
+// 2. FORMAT LISTINGS DEBUGGING
+// Enhanced formatListings function with debugging:
+
+const formatListings = (apiData) => {
+  console.log('🔄 Starting formatListings with:', apiData);
+  console.log('📊 Input data length:', apiData.length);
+  
+  if (!Array.isArray(apiData)) {
+    console.error('❌ formatListings received non-array:', typeof apiData);
+    return [];
+  }
+  
+  const formatted = apiData.map((property, index) => {
+    console.log(`🏠 Processing property ${index + 1}:`, property);
+    
+    // Check for required fields
+    const requiredFields = ['id', 'title', 'price', 'location'];
+    const missingFields = requiredFields.filter(field => !property[field]);
+    if (missingFields.length > 0) {
+      console.warn(`⚠️ Property ${index + 1} missing fields:`, missingFields);
+    }
+    
+    // Debug media processing
+    console.log(`📷 Property ${index + 1} media:`, property.media);
+    const images = property.media
+      ? property.media.filter(media => media && media.image).map(media => media.image)
+      : [];
+    console.log(`🖼️ Property ${index + 1} processed images:`, images);
+    
+    // Debug amenities processing
+let amenities = [];
+if (property.amenities) {
+  if (Array.isArray(property.amenities)) {
+    amenities = property.amenities;
+    console.log(`🎯 Property ${index + 1} amenities:`, amenities);
+  } else if (typeof property.amenities === 'string') {
+    try {
+      amenities = JSON.parse(property.amenities);
+      console.log(`🎯 Property ${index + 1} amenities:`, amenities);
+    } catch (e) {
+      console.warn(`⚠️ Property ${index + 1} amenities parsing failed:`, e);
+      amenities = [];
+    }
+  } else {
+    console.warn(`⚠️ Property ${index + 1} has no valid amenities`);
+  }
+} else {
+  console.warn(`⚠️ Property ${index + 1} has no amenities`);
+}
+    
+    const formattedProperty = {
       id: property.id,
-      title: property.title,
-      price: parseFloat(property.price),
-      address: property.location,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
+      title: property.title || 'Untitled Property',
+      price: parseFloat(property.price) || 0,
+      address: property.location || 'Address not available',
+      bedrooms: parseInt(property.bedrooms) || 0,
+      bathrooms: parseInt(property.bathrooms) || 0,
       sqft: 0, // Not provided in API
-      propertyType: property.property_type.toLowerCase(),
-      status: property.status,
-      images: property.media
-        .filter(media => media.image)
-        .map(media => media.image),
+      propertyType: property.property_type?.toLowerCase() || 'unknown',
+      status: property.status || 'available',
+      images: images,
       agent: {
-        name: property.agent_name,
-        phone: property.agent_phone_number,
+        name: property.agent_name || 'Agent not available',
+        phone: property.agent_phone_number || '',
       },
       coordinates: { 
-        lat: parseFloat(property.latitude), 
-        lng: parseFloat(property.longitude) 
+        lat: parseFloat(property.latitude) || 0, 
+        lng: parseFloat(property.longitude) || 0
       },
-      isSaved: property.is_saved,
-      daysOnMarket: property.days_since_posted,
-      amenities: property.amenities && property.amenities.length > 0 
-        ? JSON.parse(property.amenities[0]) 
-        : [],
-      description: property.description
-    }));
-  };
+      isSaved: property.is_saved || false,
+      daysOnMarket: property.days_since_posted || 0,
+      amenities: amenities,
+      description: property.description || ''
+    };
+    
+    console.log(`✅ Property ${index + 1} formatted:`, formattedProperty);
+    return formattedProperty;
+  });
+  
+  console.log('🎉 formatListings completed. Result:', formatted);
+  return formatted;
+};
+
+// 3. FILTER DEBUGGING
+// Enhanced applyFilters function:
+
+const applyFilters = (propertiesToFilter = properties) => {
+  console.log('🔍 Applying filters to:', propertiesToFilter.length, 'properties');
+  
+  let filtered = [...propertiesToFilter];
+  console.log('📊 Starting with:', filtered.length, 'properties');
+  
+  // Log all current search params
+  const currentParams = Object.fromEntries(searchParams);
+  console.log('🔧 Current search params:', currentParams);
+  
+  const query = searchParams.get('query') || '';
+  const location = searchParams.get('location');
+  const propertyType = searchParams.get('propertyType');
+  const minPrice = searchParams.get('minPrice');
+  const maxPrice = searchParams.get('maxPrice');
+  const bedrooms = searchParams.get('bedrooms');
+  const bathrooms = searchParams.get('bathrooms');
+
+  // Apply each filter with logging
+  if (query) {
+    const beforeLength = filtered.length;
+    filtered = filtered.filter(property =>
+      property.title.toLowerCase().includes(query.toLowerCase()) ||
+      property.address.toLowerCase().includes(query.toLowerCase()) ||
+      property.description.toLowerCase().includes(query.toLowerCase())
+    );
+    console.log(`🔍 Query filter "${query}": ${beforeLength} → ${filtered.length}`);
+  }
+
+  if (location) {
+    const beforeLength = filtered.length;
+    filtered = filtered.filter(property =>
+      property.address.toLowerCase().includes(location.toLowerCase())
+    );
+    console.log(`📍 Location filter "${location}": ${beforeLength} → ${filtered.length}`);
+  }
+
+  if (propertyType && propertyType !== 'all') {
+    const beforeLength = filtered.length;
+    filtered = filtered.filter(property =>
+      property.propertyType === propertyType
+    );
+    console.log(`🏠 PropertyType filter "${propertyType}": ${beforeLength} → ${filtered.length}`);
+  }
+
+  if (minPrice) {
+    const beforeLength = filtered.length;
+    const minPriceNum = parseFloat(minPrice);
+    filtered = filtered.filter(property =>
+      property.price >= minPriceNum
+    );
+    console.log(`💰 MinPrice filter "${minPrice}": ${beforeLength} → ${filtered.length}`);
+  }
+
+  if (maxPrice) {
+    const beforeLength = filtered.length;
+    const maxPriceNum = parseFloat(maxPrice);
+    filtered = filtered.filter(property =>
+      property.price <= maxPriceNum
+    );
+    console.log(`💰 MaxPrice filter "${maxPrice}": ${beforeLength} → ${filtered.length}`);
+  }
+
+  if (bedrooms) {
+    const beforeLength = filtered.length;
+    filtered = filtered.filter(property =>
+      property.bedrooms >= parseInt(bedrooms)
+    );
+    console.log(`🛏️ Bedrooms filter "${bedrooms}": ${beforeLength} → ${filtered.length}`);
+  }
+
+  if (bathrooms) {
+    const beforeLength = filtered.length;
+    filtered = filtered.filter(property =>
+      property.bathrooms >= parseInt(bathrooms)
+    );
+    console.log(`🚿 Bathrooms filter "${bathrooms}": ${beforeLength} → ${filtered.length}`);
+  }
+
+  // Apply sorting
+  filtered = sortProperties(filtered, sortBy);
+  console.log(`📊 Final filtered properties: ${filtered.length}`);
+  console.log('🎯 Final filtered list:', filtered);
+  
+  setFilteredProperties(filtered);
+  setCurrentPage(1); // Reset to first page when filters change
+};
+
+// 4. COMPONENT STATE DEBUGGING
+// Add this to your component to monitor state changes:
+
+useEffect(() => {
+  console.log('📊 Properties state changed:', properties.length);
+}, [properties]);
+
+useEffect(() => {
+  console.log('🔍 FilteredProperties state changed:', filteredProperties.length);
+}, [filteredProperties]);
+
+useEffect(() => {
+  console.log('⏳ Loading state changed:', loading);
+}, [loading]);
+
+useEffect(() => {
+  console.log('❌ Error state changed:', error);
+}, [error]);
+
+// 5. RENDERING DEBUGGING
+// Add this just before your return statement:
+
+console.log('🎨 Rendering with state:', {
+  loading,
+  error,
+  propertiesCount: properties.length,
+  filteredPropertiesCount: filteredProperties.length,
+  currentPropertiesCount: currentProperties.length,
+  viewMode,
+  currentPage,
+  totalPages
+});
+
+// 6. COMMON ISSUES TO CHECK:
+
+/*
+❌ POTENTIAL ISSUES:
+
+1. API Response Format:
+   - Check if API returns array or object with properties array
+   - Verify field names match (location vs address, etc.)
+
+2. Data Type Issues:
+   - Ensure price is numeric
+   - Check if media is array
+   - Verify coordinate data types
+
+3. Filter Issues:
+   - Check if default filters are too restrictive
+   - Verify search params are being read correctly
+
+4. State Issues:
+   - Properties array is empty
+   - Filters removing all properties
+   - Loading state stuck on true
+
+5. Network Issues:
+   - CORS errors
+   - Authentication required
+   - API endpoint returning errors
+
+6. Component Issues:
+   - Conditional rendering hiding content
+   - CSS hiding elements
+   - Wrong view mode selected
+*/
+
+// 7. QUICK FIXES TO TRY:
+
+// Temporary bypass filters for testing:
+const bypassFilters = () => {
+  console.log('🚨 BYPASSING FILTERS FOR TESTING');
+  setFilteredProperties(properties);
+};
+
+// Force show loading state:
+const forceShowContent = () => {
+  console.log('🚨 FORCING CONTENT DISPLAY');
+  setLoading(false);
+  setError(null);
+};
+
+// 8. API VALIDATION
+// Add this to validate your API response structure:
+const validateApiResponse = (data) => {
+  if (!Array.isArray(data)) {
+    console.error('❌ API response is not an array');
+    return false;
+  }
+  
+  if (data.length === 0) {
+    console.warn('⚠️ API response is empty array');
+    return true; // Empty is valid
+  }
+  
+  // Check first item structure
+  const firstItem = data[0];
+  const requiredFields = ['id', 'title', 'price', 'location'];
+  const missingFields = requiredFields.filter(field => !(field in firstItem));
+  
+  if (missingFields.length > 0) {
+    console.error('❌ API response missing required fields:', missingFields);
+    console.error('📋 Available fields:', Object.keys(firstItem));
+    return false;
+  }
+  
+  console.log('✅ API response structure is valid');
+  return true;
+};
+
+
+
+
+  // Format API response to match frontend structure
+  // const formatListings = (apiData) => {
+  //   return apiData.map(property => ({
+  //     id: property.id,
+  //     title: property.title,
+  //     price: parseFloat(property.price),
+  //     address: property.location,
+  //     bedrooms: property.bedrooms,
+  //     bathrooms: property.bathrooms,
+  //     sqft: 0, // Not provided in API
+  //     propertyType: property.property_type.toLowerCase(),
+  //     status: property.status,
+  //     images: property.media
+  //       .filter(media => media.image)
+  //       .map(media => media.image),
+  //     agent: {
+  //       name: property.agent_name,
+  //       phone: property.agent_phone_number,
+  //     },
+  //     coordinates: { 
+  //       lat: parseFloat(property.latitude), 
+  //       lng: parseFloat(property.longitude) 
+  //     },
+  //     isSaved: property.is_saved,
+  //     daysOnMarket: property.days_since_posted,
+  //     amenities: property.amenities && property.amenities.length > 0 
+  //       ? JSON.parse(property.amenities[0]) 
+  //       : [],
+  //     description: property.description
+  //   }));
+  // };
 
   // Fetch properties from API
-  useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true);
-      try {
-        const data = await getAllProperties();
-        const formattedProperties = formatListings(data);
-        setProperties(formattedProperties);
-        applyFilters(formattedProperties);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load properties. Please try again later.');
-        console.error('Error fetching properties:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // useEffect(() => {
+  //   const fetchProperties = async () => {
+  //     setLoading(true);
+  //     try {
+  //       const data = await getAllProperties();
+  //       const formattedProperties = formatListings(data);
+  //       setProperties(formattedProperties);
+  //       applyFilters(formattedProperties);
+  //       setError(null);
+  //     } catch (err) {
+  //       setError('Failed to load properties. Please try again later.');
+  //       console.error('Error fetching properties:', err);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    fetchProperties();
-  }, []);
+  //   fetchProperties();
+  // }, []);
 
   // Apply filters based on search params
-  const applyFilters = (propertiesToFilter = properties) => {
-    let filtered = [...propertiesToFilter];
+  // const applyFilters = (propertiesToFilter = properties) => {
+  //   let filtered = [...propertiesToFilter];
     
-    const query = searchParams.get('query') || '';
-    const location = searchParams.get('location');
-    const propertyType = searchParams.get('propertyType');
-    const minPrice = searchParams.get('minPrice');
-    const maxPrice = searchParams.get('maxPrice');
-    const bedrooms = searchParams.get('bedrooms');
-    const bathrooms = searchParams.get('bathrooms');
+  //   const query = searchParams.get('query') || '';
+  //   const location = searchParams.get('location');
+  //   const propertyType = searchParams.get('propertyType');
+  //   const minPrice = searchParams.get('minPrice');
+  //   const maxPrice = searchParams.get('maxPrice');
+  //   const bedrooms = searchParams.get('bedrooms');
+  //   const bathrooms = searchParams.get('bathrooms');
 
-    if (query) {
-      filtered = filtered.filter(property =>
-        property.title.toLowerCase().includes(query.toLowerCase()) ||
-        property.address.toLowerCase().includes(query.toLowerCase()) ||
-        property.description.toLowerCase().includes(query.toLowerCase())
-      );
-    }
+  //   if (query) {
+  //     filtered = filtered.filter(property =>
+  //       property.title.toLowerCase().includes(query.toLowerCase()) ||
+  //       property.address.toLowerCase().includes(query.toLowerCase()) ||
+  //       property.description.toLowerCase().includes(query.toLowerCase())
+  //     );
+  //   }
 
-    if (location) {
-      filtered = filtered.filter(property =>
-        property.address.toLowerCase().includes(location.toLowerCase())
-      );
-    }
+  //   if (location) {
+  //     filtered = filtered.filter(property =>
+  //       property.address.toLowerCase().includes(location.toLowerCase())
+  //     );
+  //   }
 
-    if (propertyType && propertyType !== 'all') {
-      filtered = filtered.filter(property =>
-        property.propertyType === propertyType
-      );
-    }
+  //   if (propertyType && propertyType !== 'all') {
+  //     filtered = filtered.filter(property =>
+  //       property.propertyType === propertyType
+  //     );
+  //   }
 
-    if (minPrice) {
-      const minPriceNum = parseFloat(minPrice);
-      filtered = filtered.filter(property =>
-        property.price >= minPriceNum
-      );
-    }
+  //   if (minPrice) {
+  //     const minPriceNum = parseFloat(minPrice);
+  //     filtered = filtered.filter(property =>
+  //       property.price >= minPriceNum
+  //     );
+  //   }
 
-    if (maxPrice) {
-      const maxPriceNum = parseFloat(maxPrice);
-      filtered = filtered.filter(property =>
-        property.price <= maxPriceNum
-      );
-    }
+  //   if (maxPrice) {
+  //     const maxPriceNum = parseFloat(maxPrice);
+  //     filtered = filtered.filter(property =>
+  //       property.price <= maxPriceNum
+  //     );
+  //   }
 
-    if (bedrooms) {
-      filtered = filtered.filter(property =>
-        property.bedrooms >= parseInt(bedrooms)
-      );
-    }
+  //   if (bedrooms) {
+  //     filtered = filtered.filter(property =>
+  //       property.bedrooms >= parseInt(bedrooms)
+  //     );
+  //   }
 
-    if (bathrooms) {
-      filtered = filtered.filter(property =>
-        property.bathrooms >= parseInt(bathrooms)
-      );
-    }
+  //   if (bathrooms) {
+  //     filtered = filtered.filter(property =>
+  //       property.bathrooms >= parseInt(bathrooms)
+  //     );
+  //   }
 
-    // Apply sorting
-    filtered = sortProperties(filtered, sortBy);
+  //   // Apply sorting
+  //   filtered = sortProperties(filtered, sortBy);
     
-    setFilteredProperties(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  };
+  //   setFilteredProperties(filtered);
+  //   setCurrentPage(1); // Reset to first page when filters change
+  // };
 
   // Sort properties
   const sortProperties = (propertiesToSort, sortOption) => {

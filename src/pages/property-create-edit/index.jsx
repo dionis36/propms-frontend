@@ -5,7 +5,7 @@ import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../../contexts/AuthContext';
-import { createProperty, getPropertyById } from '../../services/api';
+import { createProperty, getPropertyById, updateProperty } from '../../services/api';
 
 
 // Component imports
@@ -120,6 +120,31 @@ const loadPropertyData = async (propertyId) => {
     const token = accessToken || localStorage.getItem('accessToken');
     const property = await getPropertyById(propertyId, token); // real backend fetch
 
+    // Process images with unique IDs and primary flag
+    const processedImages = property.media
+      .filter(media => media.image)
+      .map((media, index) => ({
+        id: `existing-image-${media.id}`,
+        name: media.image.split('/').pop(),
+        file: null, // no actual file, just placeholder
+        url: media.image,
+        isPrimary: index === 0, // First image is primary by default
+        type: 'image',
+        size: null // Size unknown for existing files
+      }));
+
+    // Process videos with unique IDs
+    const processedVideos = property.media
+      .filter(media => media.video)
+      .map(media => ({
+        id: `existing-video-${media.id}`,
+        name: media.video.split('/').pop(),
+        file: null,
+        url: media.video,
+        type: 'video',
+        size: null // Size unknown for existing files
+      }));
+
     setFormData({
       title: property.title,
       price: property.price,
@@ -136,20 +161,8 @@ const loadPropertyData = async (propertyId) => {
         ? property.amenities
         : JSON.parse(property.amenities || '[]'),
       availableFrom: property.available_from || '',
-      images: property.media
-        .filter(media => media.image)
-        .map(media => ({
-          name: media.image.split('/').pop(),
-          file: null, // no actual file, just placeholder
-          url: media.image,
-        })),
-      videos: property.media
-        .filter(media => media.video)
-        .map(media => ({
-          name: media.video.split('/').pop(),
-          file: null,
-          url: media.video,
-        })),
+      images: processedImages,
+      videos: processedVideos,
     });
 
     setIsDraft(false);
@@ -226,23 +239,46 @@ const loadPropertyData = async (propertyId) => {
     // For AVAILABLE status, backend will set to creation date automatically
 
     // Amenities as JSON string
-    if (formData.amenities && formData.amenities.length > 0) {
-      const amenitiesArray = formData.amenities.map(a => a.toLowerCase());
-      data.append('amenities', JSON.stringify(amenitiesArray));
-    } else {
-      data.append('amenities', JSON.stringify([]));
-    }
+    // if (formData.amenities && formData.amenities.length > 0) {
+    //   const amenitiesArray = formData.amenities.map(a => a.toLowerCase());
+    //   data.append('amenities', JSON.stringify(amenitiesArray));
+    // } else {
+    //   data.append('amenities', JSON.stringify([]));
+    // }
+    // --- START OF REPLACEMENT CODE ---
 
-    // Image files
+// 1. Prepare the amenities array, converting to lowercase
+const amenitiesArrayToSend = formData.amenities ? formData.amenities.map(a => a.toLowerCase()) : [];
+
+// 2. Append each amenity as a separate entry to the FormData object
+// This correctly sends an array of strings to a backend expecting multiple values for one key.
+amenitiesArrayToSend.forEach(amenity => {
+    data.append('amenities', amenity);
+});
+
+
+// --- END OF REPLACEMENT CODE ---
+
+    // Image files - only append new files (with file property)
+    // Sort images so primary image is submitted first
     if (formData.images && formData.images.length > 0) {
-      formData.images.forEach(imageFile => {
-        if (imageFile && imageFile.file) {
-          data.append('image', imageFile.file);
-        }
+      // Filter only new files (those with file property)
+      const newImageFiles = formData.images.filter(imageFile => imageFile && imageFile.file);
+      
+      // Sort so primary image comes first
+      const sortedImages = newImageFiles.sort((a, b) => {
+        if (a.isPrimary && !b.isPrimary) return -1;
+        if (!a.isPrimary && b.isPrimary) return 1;
+        return 0; // maintain original order for non-primary images
+      });
+      
+      // Append sorted images to FormData
+      sortedImages.forEach(imageFile => {
+        data.append('image', imageFile.file);
       });
     }
 
-    // Video files (up to 3)
+    // Video files (up to 3) - only append new files (with file property)
     if (formData.videos && formData.videos.length > 0) {
       formData.videos.slice(0, 3).forEach(videoFile => { // Remove the 'index' parameter
         if (videoFile && videoFile.file) {
@@ -379,7 +415,11 @@ const loadPropertyData = async (propertyId) => {
 
 
 
+// Replace your existing handlePublish function with this updated version
+// Make sure to import updateProperty at the top: import { createProperty, getPropertyById, updateProperty } from '../../services/api';
+
 const handlePublish = async () => {
+  // Validate all required steps
   let isValid = true;
   for (let step = 1; step <= 4; step++) {
     if (step !== 3 && !validateStep(step)) {
@@ -414,65 +454,61 @@ const handlePublish = async () => {
     const payload = preparePayload();
 
     console.group('🚀 Publishing Property');
-    console.log('Endpoint:', id ? 'PATCH /property/{id}/' : 'POST /property/submit/');
+    console.log('Operation:', isEditing ? 'UPDATE' : 'CREATE');
+    console.log('Endpoint:', isEditing ? `PATCH /property/${id}/` : 'POST /property/submit/');
     for (let [key, value] of payload.entries()) {
-      console.log(`${key}:`, value);
+      if (value instanceof File) {
+        console.log(`${key}:`, `File(${value.name}, ${value.size} bytes)`);
+      } else {
+        console.log(`${key}:`, value);
+      }
     }
     console.log('Token being sent:', token);
     console.groupEnd();
 
-    const propertyData = id
-      ? null
+    // Call appropriate API function based on mode
+    const propertyData = isEditing
+      ? await updateProperty(id, payload, token)
       : await createProperty(payload, token);
 
     console.log('✅ Property saved successfully:', propertyData);
 
-    const hasMedia =
-      (formData.images && formData.images.length > 0) ||
-      (formData.videos && formData.videos.length > 0);
+    // Check if there are new media files to upload
+    const hasNewMedia = 
+      (formData.images && formData.images.some(img => img.file)) ||
+      (formData.videos && formData.videos.some(vid => vid.file));
 
-    if (hasMedia) {
+    if (hasNewMedia) {
       setIsUploadingMedia(true);
-      console.log('📤 Uploading media files...');
+      console.log('📤 New media files detected and uploaded with the property...');
 
-      const mediaFiles = [];
-
-      formData.images?.forEach((img) => {
-        if (img.file) {
-          mediaFiles.push({
-            file: img.file,
-            type: 'image',
-            name: img.name,
-            isPrimary: img.isPrimary || false,
-          });
-        }
-      });
-
-      formData.videos?.forEach((vid) => {
-        if (vid.file) {
-          mediaFiles.push({
-            file: vid.file,
-            type: 'video',
-            name: vid.name,
-          });
-        }
-      });
-
-      if (mediaFiles.length > 0) {
-        // Note: uploadPropertyMedia function needs to be implemented if you want media upload
-        // await uploadPropertyMedia(propertyData.id, mediaFiles);
-        console.log('🖼️ Media upload would happen here');
-      }
+      // Note: With the current setup, media files are uploaded directly with the property
+      // If you need separate media upload endpoint, implement uploadPropertyMedia function
+      
+      console.log('🖼️ Media files have been processed with the property update');
     }
 
-    localStorage.removeItem(DRAFT_KEY);
+    // Clean up draft for new properties
+    if (!isEditing) {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+
     console.log('🎉 Property published successfully!');
-    navigate(`/property/${propertyData.id}`);
+    
+    // Navigate to the property detail page
+    navigate(`/property/${propertyData?.id || id}`);
+    
   } catch (error) {
     console.error('🚨 Publish error:', error);
     
     if (error.status === 401) {
       setSubmitError('Authentication failed. Please log in again and try publishing.');
+    } else if (error.status === 400) {
+      setSubmitError(`Validation error: ${error.message}`);
+    } else if (error.status === 404 && isEditing) {
+      setSubmitError('Property not found. It may have been deleted.');
+    } else if (error.status === 403) {
+      setSubmitError('You do not have permission to perform this action.');
     } else {
       setSubmitError(error.message || 'An error occurred during publishing. Please try again.');
     }

@@ -2,22 +2,10 @@
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
-// Import jwt-decode if you're using it in loginUser
-// You'll need to install it: npm install jwt-decode
-// const jwtDecode = (await import('jwt-decode')).default; // Example of dynamic import if needed
 
-/**
- * Helper function for making general API requests.
- * Encapsulates fetch, header setup, JSON parsing, and robust error handling.
- *
- * @param {string} url - The full URL of the API endpoint.
- * @param {string} method - The HTTP method (e.g., 'GET', 'POST', 'PATCH').
- * @param {object} [data=null] - The request body data (for POST, PATCH, PUT).
- * @param {string} [token=null] - Optional JWT access token for Authorization header.
- * @returns {Promise<object|string>} - The parsed JSON response or raw text.
- * @throws {Error} - Throws an error object with status and parsed error data.
- */
 async function makeRequest(url, method, data = null, token = null) {
+  console.log('🌐 API Request:', url);
+  console.trace('📍 Called from:');
   const headers = {};
 
   // Only set JSON content type for non-FormData
@@ -112,10 +100,79 @@ export const createProperty = async (formData, token) => {
     // No need to manually set 'Content-Type': 'multipart/form-data' as fetch does it automatically for FormData.
     return makeRequest(`${API_BASE}/api/property/submit/`, 'POST', formData, token);
 };
-export const updateProperty = async (propertyId, payload, token) => {
-  // Use makeRequest for consistency.
-  // The payload (FormData) will be handled correctly by makeRequest.
-  return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'PATCH', payload, token);
+// export const updateProperty = async (propertyId, payload, token) => {
+//   // Use makeRequest for consistency.
+//   // The payload (FormData) will be handled correctly by makeRequest.
+//   return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'PATCH', payload, token);
+// };
+
+export const updateProperty = async (propertyId, formData, token) => {
+  const url = `${API_BASE}/property/${propertyId}/`;
+  
+  try {
+    console.log('🔄 Updating property:', propertyId);
+    
+    // Log FormData entries for debugging
+    console.group('📝 Update Payload');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}:`, `File(${value.name}, ${value.size} bytes)`);
+      } else {
+        console.log(`${key}:`, value);
+      }
+    }
+    console.groupEnd();
+
+    const response = await fetch(url, {
+      method: 'PATCH', // Using PATCH for partial updates
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type header - let browser set it with boundary for FormData
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      try {
+        const errorData = await response.json();
+        
+        // Handle validation errors
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (typeof errorData === 'object') {
+          // Format field-specific errors
+          const fieldErrors = Object.entries(errorData)
+            .map(([field, errors]) => {
+              const errorList = Array.isArray(errors) ? errors : [errors];
+              return `${field}: ${errorList.join(', ')}`;
+            })
+            .join('; ');
+          errorMessage = fieldErrors || errorMessage;
+        }
+      } catch (parseError) {
+        console.warn('Could not parse error response:', parseError);
+      }
+      
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ Property updated successfully:', data);
+    return data;
+
+  } catch (error) {
+    console.error('🚨 Update property error:', error);
+    
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    throw error;
+  }
 };
 
 // display property details

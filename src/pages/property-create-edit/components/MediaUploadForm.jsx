@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 
 const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
@@ -40,6 +40,21 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
     'video/avi': [0x52, 0x49, 0x46, 0x46],
     'video/quicktime': [0x00, 0x00, 0x00, null, 0x66, 0x74, 0x79, 0x70]
   };
+
+  // Set first image as primary if no primary is set (for editing scenario)
+  useEffect(() => {
+    if (images.length > 0 && !images.some(img => img.isPrimary)) {
+      const updatedImages = images.map((img, index) => ({
+        ...img,
+        isPrimary: index === 0
+      }));
+      
+      setFormData(prev => ({
+        ...prev,
+        images: updatedImages
+      }));
+    }
+  }, [images.length]); // Only run when images array length changes
 
   // Security: Check file signature against declared MIME type
   const validateFileSignature = async (file) => {
@@ -270,14 +285,15 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
 
   const removeImage = (imageId) => {
     const imageToRemove = images.find(img => img.id === imageId);
-    if (imageToRemove?.preview) {
+    if (imageToRemove?.preview && imageToRemove.file) {
+      // Only revoke URL if it's a blob URL (newly uploaded file)
       URL.revokeObjectURL(imageToRemove.preview);
     }
     
     // Create new array without the removed image
     const remainingImages = images.filter(img => img.id !== imageId);
     
-    // FIXED: Only set new primary if the removed image WAS primary and there are remaining images
+    // Only set new primary if the removed image WAS primary and there are remaining images
     if (imageToRemove?.isPrimary && remainingImages.length > 0) {
       // Ensure only the first remaining image becomes primary
       remainingImages[0] = { ...remainingImages[0], isPrimary: true };
@@ -287,7 +303,7 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
       }
     }
     
-    // FIXED: Update state properly to prevent deletion bugs
+    // Update state properly to prevent deletion bugs
     setFormData(prev => ({
       ...prev,
       images: remainingImages
@@ -296,11 +312,12 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
 
   const removeVideo = (videoId) => {
     const videoToRemove = videos.find(vid => vid.id === videoId);
-    if (videoToRemove?.preview) {
+    if (videoToRemove?.preview && videoToRemove.file) {
+      // Only revoke URL if it's a blob URL (newly uploaded file)
       URL.revokeObjectURL(videoToRemove.preview);
     }
     
-    // FIXED: Create new array properly
+    // Create new array properly
     const remainingVideos = videos.filter(vid => vid.id !== videoId);
     
     setFormData(prev => ({
@@ -310,7 +327,7 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
   };
 
   const setPrimaryImage = (imageId) => {
-    // FIXED: Ensure only one primary image at a time
+    // Ensure only one primary image at a time
     const updatedImages = images.map(img => ({
       ...img,
       isPrimary: img.id === imageId
@@ -341,7 +358,7 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // FIXED: Helper function to get media data for review forms
+  // Helper function to get media data for review forms
   const getMediaSummary = () => {
     const primaryImage = images.find(img => img.isPrimary);
     return {
@@ -349,27 +366,27 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
       totalVideos: videos.length,
       primaryImage: primaryImage ? {
         name: primaryImage.name,
-        size: formatFileSize(primaryImage.size),
-        preview: primaryImage.preview
+        size: primaryImage.size ? formatFileSize(primaryImage.size) : 'N/A',
+        preview: primaryImage.preview || primaryImage.url
       } : null,
       allImages: images.map(img => ({
         id: img.id,
         name: img.name,
-        size: formatFileSize(img.size),
+        size: img.size ? formatFileSize(img.size) : 'N/A',
         isPrimary: img.isPrimary,
-        preview: img.preview
+        preview: img.preview || img.url
       })),
       allVideos: videos.map(vid => ({
         id: vid.id,
         name: vid.name,
-        size: formatFileSize(vid.size),
-        preview: vid.preview
+        size: vid.size ? formatFileSize(vid.size) : 'N/A',
+        preview: vid.preview || vid.url
       }))
     };
   };
 
   // Expose media summary for parent components (like review forms)
-  React.useEffect(() => {
+  useEffect(() => {
     if (setFormData) {
       setFormData(prev => ({
         ...prev,
@@ -458,7 +475,7 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
               <div key={image.id} className="relative group">
                 <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                   <img
-                    src={image.preview}
+                    src={image.preview || image.url}
                     alt={`Upload ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
@@ -467,6 +484,13 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
                   {image.isPrimary && (
                     <div className="absolute top-2 left-2 bg-primary text-white text-xs px-2 py-1 rounded-full font-medium">
                       Primary
+                    </div>
+                  )}
+                  
+                  {/* Existing Image Badge */}
+                  {image.url && !image.file && (
+                    <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                      Existing
                     </div>
                   )}
                   
@@ -495,7 +519,7 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
                 
                 <div className="mt-2 text-xs text-text-secondary truncate">
                   <p>{image.name}</p>
-                  <p>{formatFileSize(image.size)}</p>
+                  <p>{image.size ? formatFileSize(image.size) : 'Existing file'}</p>
                 </div>
               </div>
             ))}
@@ -546,15 +570,25 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
           <div className="space-y-3 mt-4">
             {videos.map((video, index) => (
               <div key={video.id} className="flex items-center space-x-3 p-3 bg-background rounded-lg border border-border">
-                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <Icon name="Video" size={24} className="text-text-secondary" />
+                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center relative">
+                  {video.url && !video.file ? (
+                    // For existing videos, show a play icon
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Icon name="Play" size={24} className="text-text-secondary" />
+                    </div>
+                  ) : (
+                    <Icon name="Video" size={24} className="text-text-secondary" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-text-primary truncate">
                     {video.name}
                   </p>
                   <p className="text-xs text-text-secondary">
-                    {formatFileSize(video.size)}
+                    {video.size ? formatFileSize(video.size) : 'Existing file'}
+                    {video.url && !video.file && (
+                      <span className="ml-2 text-blue-600 font-medium">• Existing</span>
+                    )}
                   </p>
                 </div>
                 <button

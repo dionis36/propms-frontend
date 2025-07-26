@@ -23,6 +23,36 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
     { value: 'Shared Bathroom', label: 'Shared Bathroom' }
   ];
 
+  // Helper function to check if an amenity is selected (case-insensitive)
+  const isAmenitySelected = (amenityOption) => {
+    const backendAmenities = formData?.amenities || [];
+    return backendAmenities.some(backendAmenity => 
+      backendAmenity.toLowerCase() === amenityOption.toLowerCase()
+    );
+  };
+
+  // Helper function to get the original amenity value from backend (preserving case)
+  const getOriginalAmenityValue = (amenityOption) => {
+    const backendAmenities = formData?.amenities || [];
+    const foundAmenity = backendAmenities.find(backendAmenity => 
+      backendAmenity.toLowerCase() === amenityOption.toLowerCase()
+    );
+    return foundAmenity || amenityOption;
+  };
+
+  // Helper function to check if a backend amenity matches any predefined option
+  const isCustomAmenity = (backendAmenity) => {
+    const allPredefinedOptions = [
+      ...commonAmenities,
+      ...commonAdditionalFeatures,
+      ...bathroomOptions.map(opt => opt.value)
+    ];
+    
+    return !allPredefinedOptions.some(option => 
+      option.toLowerCase() === backendAmenity.toLowerCase()
+    );
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === 'checkbox' ? checked : value;
@@ -40,7 +70,7 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
     // If bathrooms are set to 0, remove bathroom type
     if (name === 'bathrooms' && Number(newValue) === 0) {
       const updatedAmenities = (formData?.amenities || []).filter(a => 
-        !bathroomOptions.some(opt => opt.value === a)
+        !bathroomOptions.some(opt => opt.value.toLowerCase() === a.toLowerCase())
       );
       setFormData(prev => ({
         ...prev,
@@ -51,21 +81,31 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
 
   const handleAmenityToggle = (amenity) => {
     const currentAmenities = formData?.amenities || [];
-    const isSelected = currentAmenities.includes(amenity);
+    const isSelected = isAmenitySelected(amenity);
     
-    setFormData(prev => ({
-      ...prev,
-      amenities: isSelected 
-        ? currentAmenities.filter(a => a !== amenity)
-        : [...currentAmenities, amenity]
-    }));
+    if (isSelected) {
+      // Remove the amenity (find and remove the exact backend version)
+      const updatedAmenities = currentAmenities.filter(a => 
+        a.toLowerCase() !== amenity.toLowerCase()
+      );
+      setFormData(prev => ({
+        ...prev,
+        amenities: updatedAmenities
+      }));
+    } else {
+      // Add the amenity (use the predefined option format)
+      setFormData(prev => ({
+        ...prev,
+        amenities: [...currentAmenities, amenity]
+      }));
+    }
   };
 
   const handleBathroomTypeChange = (type) => {
-    // Remove any existing bathroom types
+    // Remove any existing bathroom types (case-insensitive)
     const currentAmenities = formData?.amenities || [];
     const filteredAmenities = currentAmenities.filter(a => 
-      !bathroomOptions.some(opt => opt.value === a)
+      !bathroomOptions.some(opt => opt.value.toLowerCase() === a.toLowerCase())
     );
     
     setFormData(prev => ({
@@ -80,22 +120,38 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
   };
 
   const addCustomAmenity = () => {
-    if (customAmenity.trim() && !(formData?.amenities || []).includes(customAmenity.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        amenities: [...(prev?.amenities || []), customAmenity.trim()]
-      }));
-      setCustomAmenity('');
+    if (customAmenity.trim()) {
+      const currentAmenities = formData?.amenities || [];
+      // Check if the custom amenity already exists (case-insensitive)
+      const alreadyExists = currentAmenities.some(amenity => 
+        amenity.toLowerCase() === customAmenity.trim().toLowerCase()
+      );
+      
+      if (!alreadyExists) {
+        setFormData(prev => ({
+          ...prev,
+          amenities: [...(prev?.amenities || []), customAmenity.trim()]
+        }));
+        setCustomAmenity('');
+      }
     }
   };
 
   const addCustomAdditional = () => {
-    if (customAdditional.trim() && !(formData?.amenities || []).includes(customAdditional.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        amenities: [...(prev?.amenities || []), customAdditional.trim()]
-      }));
-      setCustomAdditional('');
+    if (customAdditional.trim()) {
+      const currentAmenities = formData?.amenities || [];
+      // Check if the custom additional feature already exists (case-insensitive)
+      const alreadyExists = currentAmenities.some(amenity => 
+        amenity.toLowerCase() === customAdditional.trim().toLowerCase()
+      );
+      
+      if (!alreadyExists) {
+        setFormData(prev => ({
+          ...prev,
+          amenities: [...(prev?.amenities || []), customAdditional.trim()]
+        }));
+        setCustomAdditional('');
+      }
     }
   };
 
@@ -110,7 +166,7 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
   useEffect(() => {
     const bathrooms = Number(formData?.bathrooms || 0);
     const hasBathroomType = (formData?.amenities || []).some(a => 
-      bathroomOptions.some(opt => opt.value === a)
+      bathroomOptions.some(opt => opt.value.toLowerCase() === a.toLowerCase())
     );
     
     if (bathrooms >= 1 && !hasBathroomType && errors?.bathroomType === undefined) {
@@ -192,18 +248,18 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
                   type="button"
                   onClick={() => handleBathroomTypeChange(option.value)}
                   className={`text-left p-3 rounded-lg border transition-all duration-200 ${
-                    (formData?.amenities || []).includes(option.value)
+                    isAmenitySelected(option.value)
                       ? 'border-primary bg-primary-50 text-primary' 
                       : 'border-border hover:border-primary hover:bg-primary-50 text-text-secondary hover:text-primary'
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                      (formData?.amenities || []).includes(option.value)
+                      isAmenitySelected(option.value)
                         ? 'border-primary bg-primary' 
                         : 'border-border'
                     }`}>
-                      {(formData?.amenities || []).includes(option.value) && (
+                      {isAmenitySelected(option.value) && (
                         <Icon name="Check" size={12} className="text-white" />
                       )}
                     </div>
@@ -229,18 +285,18 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
               type="button"
               onClick={() => handleAmenityToggle(amenity)}
               className={`text-left p-3 rounded-lg border transition-all duration-200 ${
-                (formData?.amenities || []).includes(amenity)
+                isAmenitySelected(amenity)
                   ? 'border-primary bg-primary-50 text-primary' 
                   : 'border-border hover:border-primary hover:bg-primary-50 text-text-secondary hover:text-primary'
               }`}
             >
               <div className="flex items-center space-x-2">
                 <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                  (formData?.amenities || []).includes(amenity)
+                  isAmenitySelected(amenity)
                     ? 'border-primary bg-primary' 
                     : 'border-border'
                 }`}>
-                  {(formData?.amenities || []).includes(amenity) && (
+                  {isAmenitySelected(amenity) && (
                     <Icon name="Check" size={12} className="text-white" />
                   )}
                 </div>
@@ -282,18 +338,18 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
               type="button"
               onClick={() => handleAmenityToggle(feature)}
               className={`text-left p-3 rounded-lg border transition-all duration-200 ${
-                (formData?.amenities || []).includes(feature)
+                isAmenitySelected(feature)
                   ? 'border-primary bg-primary-50 text-primary' 
                   : 'border-border hover:border-primary hover:bg-primary-50 text-text-secondary hover:text-primary'
               }`}
             >
               <div className="flex items-center space-x-2">
                 <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                  (formData?.amenities || []).includes(feature)
+                  isAmenitySelected(feature)
                     ? 'border-primary bg-primary' 
                     : 'border-border'
                 }`}>
-                  {(formData?.amenities || []).includes(feature) && (
+                  {isAmenitySelected(feature) && (
                     <Icon name="Check" size={12} className="text-white" />
                   )}
                 </div>
@@ -324,20 +380,12 @@ const PropertySpecificationsForm = ({ formData, setFormData, errors, setErrors }
       </div>
 
       {/* Selected Custom Amenities & Features */}
-      {(formData?.amenities || []).filter(amenity => 
-        !commonAmenities.includes(amenity) && 
-        !commonAdditionalFeatures.includes(amenity) &&
-        !bathroomOptions.some(opt => opt.value === amenity)
-      ).length > 0 && (
+      {(formData?.amenities || []).filter(amenity => isCustomAmenity(amenity)).length > 0 && (
         <div className="space-y-2">
           <p className="text-sm font-medium text-text-primary">Custom Amenities & Features:</p>
           <div className="flex flex-wrap gap-2">
             {(formData?.amenities || [])
-              .filter(amenity => 
-                !commonAmenities.includes(amenity) && 
-                !commonAdditionalFeatures.includes(amenity) &&
-                !bathroomOptions.some(opt => opt.value === amenity)
-              )
+              .filter(amenity => isCustomAmenity(amenity))
               .map(amenity => (
                 <span
                   key={amenity}

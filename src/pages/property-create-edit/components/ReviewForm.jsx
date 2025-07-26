@@ -167,13 +167,18 @@ const ReviewForm = ({ formData, onEdit }) => {
                 {(formData?.images || []).slice(0, 6).map((image, index) => (
                   <div key={image.id} className="relative aspect-square rounded-lg overflow-hidden">
                     <img
-                      src={image.preview}
+                      src={image.preview || image.url}
                       alt={`Preview ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                     {image.isPrimary && (
                       <div className="absolute top-1 left-1 bg-primary text-white text-xs px-1 py-0.5 rounded">
                         Primary
+                      </div>
+                    )}
+                    {image.url && !image.file && (
+                      <div className="absolute top-1 right-1 bg-blue-600 text-white text-xs px-1 py-0.5 rounded">
+                        Existing
                       </div>
                     )}
                   </div>
@@ -207,7 +212,12 @@ const ReviewForm = ({ formData, onEdit }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-text-primary truncate">{video.name}</p>
-                      <p className="text-xs text-text-secondary">{formatFileSize(video.size)}</p>
+                      <p className="text-xs text-text-secondary">
+                        {video.size ? formatFileSize(video.size) : 'Existing file'}
+                        {video.url && !video.file && (
+                          <span className="ml-2 text-blue-600 font-medium">• Existing</span>
+                        )}
+                      </p>
                     </div>
                   </div>
                 ))}
