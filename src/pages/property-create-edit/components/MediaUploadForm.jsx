@@ -222,7 +222,8 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
         size: file.size,
         type: 'image',
         // Only set as primary if it's the first image in the batch AND there are no existing primary images
-        isPrimary: index === 0 && !hasPrimary && images.length === 0
+        isPrimary: index === 0 && !hasPrimary && images.length === 0,
+        isExisting: false // ✅ ADD THIS LINE - explicitly mark as new file
       };
     });
     
@@ -271,7 +272,8 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
       preview: URL.createObjectURL(file),
       name: file.name,
       size: file.size,
-      type: 'video'
+      type: 'video',
+      isExisting: false // ✅ ADD THIS LINE - explicitly mark as new file
     }));
     
     setFormData(prev => ({
@@ -283,48 +285,128 @@ const MediaUploadForm = ({ formData, setFormData, errors, setErrors }) => {
     updateErrors([]);
   };
 
+  // const removeImage = (imageId) => {
+  //   const imageToRemove = images.find(img => img.id === imageId);
+  //   if (imageToRemove?.preview && imageToRemove.file) {
+  //     // Only revoke URL if it's a blob URL (newly uploaded file)
+  //     URL.revokeObjectURL(imageToRemove.preview);
+  //   }
+    
+  //   // Create new array without the removed image
+  //   const remainingImages = images.filter(img => img.id !== imageId);
+    
+  //   // Only set new primary if the removed image WAS primary and there are remaining images
+  //   if (imageToRemove?.isPrimary && remainingImages.length > 0) {
+  //     // Ensure only the first remaining image becomes primary
+  //     remainingImages[0] = { ...remainingImages[0], isPrimary: true };
+  //     // Ensure all other images are not primary
+  //     for (let i = 1; i < remainingImages.length; i++) {
+  //       remainingImages[i] = { ...remainingImages[i], isPrimary: false };
+  //     }
+  //   }
+    
+  //   // Update state properly to prevent deletion bugs
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     images: remainingImages
+  //   }));
+  // };
+
   const removeImage = (imageId) => {
-    const imageToRemove = images.find(img => img.id === imageId);
+  setFormData(prevFormData => {
+    const imageToRemove = prevFormData.images.find(img => img.id === imageId);
+    let updatedDeletedMedia = [...prevFormData.deletedMedia];
+    let remainingImages = prevFormData.images.filter(img => img.id !== imageId);
+
+    // 1. Handle existing images for backend deletion
+    if (imageToRemove?.id?.startsWith('existing-image-')) {
+      const mediaId = imageToRemove.id.split('existing-image-')[1];
+      updatedDeletedMedia.push(mediaId);
+    }
+
+    // 2. Revoke Blob URLs for newly uploaded images to prevent memory leaks
     if (imageToRemove?.preview && imageToRemove.file) {
-      // Only revoke URL if it's a blob URL (newly uploaded file)
       URL.revokeObjectURL(imageToRemove.preview);
     }
-    
-    // Create new array without the removed image
-    const remainingImages = images.filter(img => img.id !== imageId);
-    
-    // Only set new primary if the removed image WAS primary and there are remaining images
+
+    // 3. Manage primary image status if the removed image was primary
     if (imageToRemove?.isPrimary && remainingImages.length > 0) {
       // Ensure only the first remaining image becomes primary
-      remainingImages[0] = { ...remainingImages[0], isPrimary: true };
-      // Ensure all other images are not primary
-      for (let i = 1; i < remainingImages.length; i++) {
-        remainingImages[i] = { ...remainingImages[i], isPrimary: false };
-      }
+      remainingImages = remainingImages.map((img, index) => ({
+        ...img,
+        isPrimary: index === 0 // Set first as primary, others as not
+      }));
+    } else if (remainingImages.length === 0) {
+      // If no images remain, there's no primary image
+      // No explicit action needed here as `isPrimary` would naturally be false or undefined for all (or empty array)
+    } else {
+      // If the removed image was NOT primary, ensure no change to primary status of others
+      // (This scenario is implicitly handled by not entering the `if` block above)
     }
+
+    return {
+      ...prevFormData,
+      images: remainingImages,
+      deletedMedia: updatedDeletedMedia
+    };
+  });
+};
+
+
+  // const removeVideo = (videoId) => {
+  //   const videoToRemove = videos.find(vid => vid.id === videoId);
+  //   if (videoToRemove?.preview && videoToRemove.file) {
+  //     // Only revoke URL if it's a blob URL (newly uploaded file)
+  //     URL.revokeObjectURL(videoToRemove.preview);
+  //   }
     
-    // Update state properly to prevent deletion bugs
-    setFormData(prev => ({
-      ...prev,
-      images: remainingImages
-    }));
-  };
+  //   // Create new array properly
+  //   const remainingVideos = videos.filter(vid => vid.id !== videoId);
+    
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     videos: remainingVideos
+  //   }));
+  // };
 
   const removeVideo = (videoId) => {
-    const videoToRemove = videos.find(vid => vid.id === videoId);
+  // Use a functional update for setFormData to ensure we're working with the latest state
+  setFormData(prevFormData => {
+    // Find the video object that needs to be removed
+    const videoToRemove = prevFormData.videos.find(vid => vid.id === videoId);
+
+    // Initialize updatedDeletedMedia with the current deletedMedia array
+    let updatedDeletedMedia = [...prevFormData.deletedMedia];
+
+    // Filter out the video to be removed from the videos array
+    const remainingVideos = prevFormData.videos.filter(vid => vid.id !== videoId);
+
+    // 1. Handle tracking existing videos for backend deletion
+    // If the video ID starts with 'existing-video-', it means it's already
+    // saved on the server and needs to be marked for deletion.
+    if (videoToRemove?.id?.startsWith('existing-video-')) {
+      // Extract the actual media ID by removing the 'existing-video-' prefix
+      const mediaId = videoToRemove.id.split('existing-video-')[1];
+      // Add the mediaId to the list of items to be deleted on the backend
+      updatedDeletedMedia.push(mediaId);
+    }
+
+    // 2. Revoke Blob URLs for newly uploaded videos to prevent memory leaks
+    // If the video has a 'preview' URL (typically a Blob URL) and a 'file' object
+    // (indicating it's a newly added local file), revoke the URL.
     if (videoToRemove?.preview && videoToRemove.file) {
-      // Only revoke URL if it's a blob URL (newly uploaded file)
       URL.revokeObjectURL(videoToRemove.preview);
     }
-    
-    // Create new array properly
-    const remainingVideos = videos.filter(vid => vid.id !== videoId);
-    
-    setFormData(prev => ({
-      ...prev,
-      videos: remainingVideos
-    }));
-  };
+
+    // Return the new formData object with the updated videos and deletedMedia arrays
+    return {
+      ...prevFormData, // Keep all other formData properties as they are
+      videos: remainingVideos, // Update the videos array
+      deletedMedia: updatedDeletedMedia // Update the deletedMedia array
+    };
+  });
+};
+
 
   const setPrimaryImage = (imageId) => {
     // Ensure only one primary image at a time

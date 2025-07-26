@@ -203,7 +203,7 @@ const PropertyDetailsForm = ({ formData, setFormData, errors, setErrors }) => {
             </div>
 
             {/* Available From - Show when status is Occupied */}
-            {formData?.status === 'Occupied' && (
+            {(formData?.status === 'Occupied' || formData?.availableFrom) && (
               <div className="lg:col-span-1">
                 <label className="block text-sm font-medium text-text-primary mb-2">
                   Available From

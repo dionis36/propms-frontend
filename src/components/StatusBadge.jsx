@@ -31,3 +31,9 @@ const StatusBadge = ({ status, className = '' }) => {
 };
 
 export default StatusBadge;
+
+
+
+
+// import StatusBadge from '../components/StatusBadge'; // Adjust the path as needed
+//       <p>User Role: <StatusBadge status={userRole} /></p>

@@ -23,7 +23,7 @@ const AgentDashboard = () => {
       id: item.id,
       title: item.title,
       price: item.price,
-      status: item.status === 'AVAILABLE' ? 'Vacant' : 'Occupied',
+      status: item.status === 'AVAILABLE' ? 'Available' : 'Occupied',
       type: item.property_type?.charAt(0).toUpperCase() + item.property_type?.slice(1).toLowerCase(),
       bedrooms: item.bedrooms || 0,
       bathrooms: item.bathrooms || 0,

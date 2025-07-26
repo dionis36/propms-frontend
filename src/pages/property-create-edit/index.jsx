@@ -17,6 +17,56 @@ import MediaUploadForm from './components/MediaUploadForm';
 import PropertySpecificationsForm from './components/PropertySpecificationsForm';
 import ReviewForm from './components/ReviewForm';
 
+// Custom Cancel Modal Component
+const CancelModal = ({ isOpen, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onCancel}
+    >
+      <div 
+        className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 transform transition-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+            <Icon name="AlertTriangle" size={20} className="text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Unsaved Changes</h3>
+            <p className="text-sm text-gray-600">You have unsaved changes that will be lost.</p>
+          </div>
+        </div>
+        
+        <p className="text-gray-700 mb-6">
+          Are you sure you want to leave? All your progress will be lost and you'll need to start over.
+        </p>
+        
+        <div className="flex items-center gap-3 justify-end">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            size="sm"
+            className="px-4 py-2"
+          >
+            Continue Editing
+          </Button>
+          <Button
+            variant="primary"
+            onClick={onConfirm}
+            size="sm"
+            className="px-4 py-2 bg-red-600 hover:bg-red-700"
+          >
+            Leave Anyway
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PropertyCreateEdit = () => {
   const { user: currentUser, accessToken } = useAuth();
   const { id } = useParams();
@@ -28,7 +78,9 @@ const PropertyCreateEdit = () => {
 
   // State management
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({
+    deletedMedia: [],
+  });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
@@ -39,6 +91,7 @@ const PropertyCreateEdit = () => {
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSubmissionTime, setLastSubmissionTime] = useState(0);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const steps = [
     'Property Details',
@@ -119,23 +172,87 @@ const PropertyCreateEdit = () => {
   };
 
 
+// const loadPropertyData = async (propertyId) => {
+//   setIsLoading(true);
+//   try {
+//     const token = accessToken || localStorage.getItem('accessToken');
+//     const property = await getPropertyById(propertyId, token); // real backend fetch
+
+//     // Process images with unique IDs and primary flag
+//     const processedImages = property.media
+//       .filter(media => media.image)
+//       .map((media, index) => ({
+//         id: `existing-image-${media.id}`,
+//         name: media.image.split('/').pop(),
+//         file: null, // no actual file, just placeholder
+//         url: media.image,
+//         isPrimary: index === 0, // First image is primary by default
+//         type: 'image',
+//         size: null // Size unknown for existing files
+//       }));
+
+//     // Process videos with unique IDs
+//     const processedVideos = property.media
+//       .filter(media => media.video)
+//       .map(media => ({
+//         id: `existing-video-${media.id}`,
+//         name: media.video.split('/').pop(),
+//         file: null,
+//         url: media.video,
+//         type: 'video',
+//         size: null // Size unknown for existing files
+//       }));
+
+//     setFormData({
+//       title: property.title,
+//       price: property.price,
+//       propertyType: property.property_type,
+//       status: property.status,
+//       description: property.description,
+//       address: property.location,
+//       locationNotes: property.location_notes,
+//       rooms: property.bedrooms,
+//       bathrooms: property.bathrooms,
+//       latitude: parseFloat(property.latitude),
+//       longitude: parseFloat(property.longitude),
+//       amenities: Array.isArray(property.amenities)
+//         ? property.amenities
+//         : JSON.parse(property.amenities || '[]'),
+//       availableFrom: property.available_from || '',
+//       images: processedImages,
+//       videos: processedVideos,
+//       deletedMedia: [],
+//     });
+
+//     setIsDraft(false);
+//     setCompletedSteps(new Set([1, 2, 3, 4]));
+//   } catch (error) {
+//     console.error('Failed to load property data:', error);
+//   } finally {
+//     setIsLoading(false);
+//   }
+// };
+
+// 1. First, update the loadPropertyData function to properly mark existing media
 const loadPropertyData = async (propertyId) => {
   setIsLoading(true);
   try {
     const token = accessToken || localStorage.getItem('accessToken');
-    const property = await getPropertyById(propertyId, token); // real backend fetch
+    const property = await getPropertyById(propertyId, token);
 
     // Process images with unique IDs and primary flag
     const processedImages = property.media
       .filter(media => media.image)
       .map((media, index) => ({
         id: `existing-image-${media.id}`,
+        mediaId: media.id, // Store the actual media ID from backend
         name: media.image.split('/').pop(),
-        file: null, // no actual file, just placeholder
+        file: null, // No actual file for existing media
         url: media.image,
-        isPrimary: index === 0, // First image is primary by default
+        isPrimary: index === 0,
         type: 'image',
-        size: null // Size unknown for existing files
+        size: null,
+        isExisting: true // Mark as existing media
       }));
 
     // Process videos with unique IDs
@@ -143,11 +260,13 @@ const loadPropertyData = async (propertyId) => {
       .filter(media => media.video)
       .map(media => ({
         id: `existing-video-${media.id}`,
+        mediaId: media.id, // Store the actual media ID from backend
         name: media.video.split('/').pop(),
         file: null,
         url: media.video,
         type: 'video',
-        size: null // Size unknown for existing files
+        size: null,
+        isExisting: true // Mark as existing media
       }));
 
     setFormData({
@@ -168,6 +287,7 @@ const loadPropertyData = async (propertyId) => {
       availableFrom: property.available_from || '',
       images: processedImages,
       videos: processedVideos,
+      deletedMedia: [],
     });
 
     setIsDraft(false);
@@ -207,93 +327,332 @@ const loadPropertyData = async (propertyId) => {
   };
 
   // Prepare payload for API submission
-  const preparePayload = () => {
-    const data = new FormData();
+//   const preparePayload = () => {
+//     const data = new FormData();
     
-    // Required fields
-    data.append('title', formData.title || '');
-    data.append('description', formData.description || '');
-    data.append('location', formData.address || '');
-    data.append('price', parseFloat(formData.price) || 0);
-    data.append('property_type', (formData.propertyType || '').toUpperCase());
-    data.append('status', (formData.status || '').toUpperCase());
-    data.append('bedrooms', parseInt(formData.rooms) || 0);
-    data.append('bathrooms', parseInt(formData.bathrooms) || 0);
+//     // Required fields
+//     data.append('title', formData.title || '');
+//     data.append('description', formData.description || '');
+//     data.append('location', formData.address || '');
+//     data.append('price', parseFloat(formData.price) || 0);
+//     data.append('property_type', (formData.propertyType || '').toUpperCase());
+//     data.append('status', (formData.status || '').toUpperCase());
+//     data.append('bedrooms', parseInt(formData.rooms) || 0);
+//     data.append('bathrooms', parseInt(formData.bathrooms) || 0);
 
-    // Optional fields
-    if (formData.locationNotes) {
-      data.append('location_notes', formData.locationNotes);
-    }
+//     // Optional fields
+//     if (formData.locationNotes) {
+//       data.append('location_notes', formData.locationNotes);
+//     }
     
-    // --- APPLYING THE FIX HERE ---
-    // Truncate/round latitude and longitude to 6 decimal places
-    if (formData.latitude) {
-      const formattedLatitude = parseFloat(formData.latitude.toFixed(6));
-      data.append('latitude', formattedLatitude.toString());
-    }
-    if (formData.longitude) {
-      const formattedLongitude = parseFloat(formData.longitude.toFixed(6));
-      data.append('longitude', formattedLongitude.toString());
-    }
-    // --- END OF FIX ---
+//     // --- APPLYING THE FIX HERE ---
+//     // Truncate/round latitude and longitude to 6 decimal places
+//     if (formData.latitude) {
+//       const formattedLatitude = parseFloat(formData.latitude.toFixed(6));
+//       data.append('latitude', formattedLatitude.toString());
+//     }
+//     if (formData.longitude) {
+//       const formattedLongitude = parseFloat(formData.longitude.toFixed(6));
+//       data.append('longitude', formattedLongitude.toString());
+//     }
+//     // --- END OF FIX ---
 
-    // Handle availability logic - ONLY for OCCUPIED status
-    if (formData.status?.toUpperCase() === 'OCCUPIED' && formData.availableFrom) {
-      data.append('available_from', formData.availableFrom);
-    }
-    // For AVAILABLE status, backend will set to creation date automatically
+//     // Handle availability logic - ONLY for OCCUPIED status
+//     if (formData.status?.toUpperCase() === 'OCCUPIED' && formData.availableFrom) {
+//       data.append('available_from', formData.availableFrom);
+//     }
+//     // For AVAILABLE status, backend will set to creation date automatically
 
-    // Amenities as JSON string
-    // if (formData.amenities && formData.amenities.length > 0) {
-    //   const amenitiesArray = formData.amenities.map(a => a.toLowerCase());
-    //   data.append('amenities', JSON.stringify(amenitiesArray));
-    // } else {
-    //   data.append('amenities', JSON.stringify([]));
-    // }
-    // --- START OF REPLACEMENT CODE ---
+//     // Amenities as JSON string
+//     // if (formData.amenities && formData.amenities.length > 0) {
+//     //   const amenitiesArray = formData.amenities.map(a => a.toLowerCase());
+//     //   data.append('amenities', JSON.stringify(amenitiesArray));
+//     // } else {
+//     //   data.append('amenities', JSON.stringify([]));
+//     // }
+//     // --- START OF REPLACEMENT CODE ---
 
-// 1. Prepare the amenities array, converting to lowercase
-const amenitiesArrayToSend = formData.amenities ? formData.amenities.map(a => a.toLowerCase()) : [];
+//     // 1. Prepare the amenities array, converting to lowercase
+//     const amenitiesArrayToSend = formData.amenities ? formData.amenities.map(a => a.toLowerCase()) : [];
 
-// 2. Append each amenity as a separate entry to the FormData object
-// This correctly sends an array of strings to a backend expecting multiple values for one key.
-amenitiesArrayToSend.forEach(amenity => {
-    data.append('amenities', amenity);
-});
+//     // 2. Append each amenity as a separate entry to the FormData object
+//     // This correctly sends an array of strings to a backend expecting multiple values for one key.
+//     amenitiesArrayToSend.forEach(amenity => {
+//         data.append('amenities', amenity);
+//     });
 
-
-// --- END OF REPLACEMENT CODE ---
-
-    // Image files - only append new files (with file property)
-    // Sort images so primary image is submitted first
-    if (formData.images && formData.images.length > 0) {
-      // Filter only new files (those with file property)
-      const newImageFiles = formData.images.filter(imageFile => imageFile && imageFile.file);
+//     // Image files - only append new files (with file property)
+//     // Sort images so primary image is submitted first
+//     if (formData.images && formData.images.length > 0) {
+//       // Filter only new files (those with file property)
+//       const newImageFiles = formData.images.filter(imageFile => imageFile && imageFile.file);
       
-      // Sort so primary image comes first
+//       // Sort so primary image comes first
+//       const sortedImages = newImageFiles.sort((a, b) => {
+//         if (a.isPrimary && !b.isPrimary) return -1;
+//         if (!a.isPrimary && b.isPrimary) return 1;
+//         return 0; // maintain original order for non-primary images
+//       });
+      
+//       // Append sorted images to FormData
+//       sortedImages.forEach(imageFile => {
+//         data.append('image', imageFile.file);
+//       });
+//     }
+
+//     // Video files (up to 3) - only append new files (with file property)
+//     if (formData.videos && formData.videos.length > 0) {
+//       formData.videos.slice(0, 3).forEach(videoFile => { // Remove the 'index' parameter
+//         if (videoFile && videoFile.file) {
+//           data.append('video', videoFile.file); // Change back to a single, consistent key 'video'
+//         }
+//       });
+//     }
+//     if (formData.deletedMedia && formData.deletedMedia.length > 0) {
+//       formData.deletedMedia.forEach((mediaId) => {
+//         data.append('deleted_media', mediaId);
+//       });
+//     }
+
+
+//     return data;
+// };
+
+// // 2. Update the preparePayload function to handle new vs existing media correctly
+// const preparePayload = () => {
+//   const data = new FormData();
+  
+//   // Required fields
+//   data.append('title', formData.title || '');
+//   data.append('description', formData.description || '');
+//   data.append('location', formData.address || '');
+//   data.append('price', parseFloat(formData.price) || 0);
+//   data.append('property_type', (formData.propertyType || '').toUpperCase());
+//   data.append('status', (formData.status || '').toUpperCase());
+//   data.append('bedrooms', parseInt(formData.rooms) || 0);
+//   data.append('bathrooms', parseInt(formData.bathrooms) || 0);
+
+//   // Optional fields
+//   if (formData.locationNotes) {
+//     data.append('location_notes', formData.locationNotes);
+//   }
+  
+//   // Truncate/round latitude and longitude to 6 decimal places
+//   if (formData.latitude) {
+//     const formattedLatitude = parseFloat(formData.latitude.toFixed(6));
+//     data.append('latitude', formattedLatitude.toString());
+//   }
+//   if (formData.longitude) {
+//     const formattedLongitude = parseFloat(formData.longitude.toFixed(6));
+//     data.append('longitude', formattedLongitude.toString());
+//   }
+
+//   // Handle availability logic - ONLY for OCCUPIED status
+//   if (formData.status?.toUpperCase() === 'OCCUPIED' && formData.availableFrom) {
+//     data.append('available_from', formData.availableFrom);
+//   }
+
+//   // Amenities - append each amenity as a separate entry
+//   const amenitiesArrayToSend = formData.amenities ? formData.amenities.map(a => a.toLowerCase()) : [];
+//   amenitiesArrayToSend.forEach(amenity => {
+//     data.append('amenities', amenity);
+//   });
+
+//   // === FIXED MEDIA HANDLING ===
+  
+//   // Image files - only append NEW files (those with file property)
+//   if (formData.images && formData.images.length > 0) {
+//     // Filter only new files (those with file property and not marked as existing)
+//     const newImageFiles = formData.images.filter(imageFile => 
+//       imageFile && imageFile.file && !imageFile.isExisting
+//     );
+    
+//     console.log('🖼️ New images to upload:', newImageFiles.length);
+    
+//     // Sort so primary image comes first
+//     const sortedImages = newImageFiles.sort((a, b) => {
+//       if (a.isPrimary && !b.isPrimary) return -1;
+//       if (!a.isPrimary && b.isPrimary) return 1;
+//       return 0;
+//     });
+    
+//     // Append sorted images to FormData
+//     sortedImages.forEach((imageFile, index) => {
+//       console.log(`📤 Appending image ${index + 1}:`, imageFile.name);
+//       data.append('image', imageFile.file);
+//     });
+//   }
+
+//   // Video files - only append NEW files (those with file property)
+//   if (formData.videos && formData.videos.length > 0) {
+//     const newVideoFiles = formData.videos.filter(videoFile => 
+//       videoFile && videoFile.file && !videoFile.isExisting
+//     );
+    
+//     console.log('🎥 New videos to upload:', newVideoFiles.length);
+    
+//     newVideoFiles.slice(0, 3).forEach((videoFile, index) => {
+//       console.log(`📤 Appending video ${index + 1}:`, videoFile.name);
+//       data.append('video', videoFile.file);
+//     });
+//   }
+
+//   // Deleted media IDs
+//   if (formData.deletedMedia && formData.deletedMedia.length > 0) {
+//     console.log('🗑️ Media to delete:', formData.deletedMedia);
+//     formData.deletedMedia.forEach((mediaId) => {
+//       data.append('deleted_media', mediaId);
+//     });
+//   }
+
+//   return data;
+// };
+
+
+
+// FIXED: Enhanced preparePayload function that properly handles editing
+const preparePayload = () => {
+  const data = new FormData();
+  
+  // Required fields
+  data.append('title', (formData.title || '').trim());
+  data.append('description', (formData.description || '').trim());
+  data.append('location', (formData.address || '').trim());
+  data.append('price', parseFloat(formData.price) || 0);
+  data.append('property_type', (formData.propertyType || '').toUpperCase());
+  data.append('status', (formData.status || '').toUpperCase());
+  data.append('bedrooms', parseInt(formData.rooms) || 0);
+  data.append('bathrooms', parseInt(formData.bathrooms) || 0);
+
+  // Optional fields
+  if (formData.locationNotes?.trim()) {
+    data.append('location_notes', formData.locationNotes.trim());
+  }
+  
+  // Coordinates with consistent precision
+  if (formData.latitude !== undefined && formData.latitude !== null) {
+    const lat = parseFloat(Number(formData.latitude).toFixed(6));
+    data.append('latitude', lat.toString());
+  }
+  if (formData.longitude !== undefined && formData.longitude !== null) {
+    const lng = parseFloat(Number(formData.longitude).toFixed(6));
+    data.append('longitude', lng.toString());
+  }
+
+  // Handle availability logic
+  if (formData.status?.toUpperCase() === 'OCCUPIED' && formData.availableFrom) {
+    data.append('available_from', formData.availableFrom);
+  }
+
+  // Amenities handling
+  const amenitiesArrayToSend = formData.amenities 
+    ? formData.amenities.map(a => a.trim().toLowerCase()).filter(a => a.length > 0)
+    : [];
+
+  amenitiesArrayToSend.forEach(amenity => {
+    data.append('amenities', amenity);
+  });
+
+  // FIXED: Different handling for CREATE vs EDIT operations
+  if (isEditing) {
+    // === EDIT MODE: Send complete media state ===
+    
+    // 1. Send existing media IDs that should be kept
+    if (formData.images && formData.images.length > 0) {
+      const existingImages = formData.images.filter(img => img.url && !img.file);
+      existingImages.forEach(img => {
+        // Extract media ID from the prefixed ID
+        const mediaId = img.id.startsWith('existing-image-') 
+          ? img.id.split('existing-image-')[1] 
+          : img.id;
+        data.append('existing_images', mediaId);
+      });
+
+      // Set primary image ID
+      const primaryImage = formData.images.find(img => img.isPrimary);
+      if (primaryImage) {
+        if (primaryImage.url && !primaryImage.file) {
+          // Existing image is primary
+          const mediaId = primaryImage.id.startsWith('existing-image-') 
+            ? primaryImage.id.split('existing-image-')[1] 
+            : primaryImage.id;
+          data.append('primary_image_id', mediaId);
+        } else {
+          // New image will be primary (handled by order of upload)
+          data.append('primary_image_new', 'true');
+        }
+      }
+    }
+
+    if (formData.videos && formData.videos.length > 0) {
+      const existingVideos = formData.videos.filter(vid => vid.url && !vid.file);
+      existingVideos.forEach(vid => {
+        const mediaId = vid.id.startsWith('existing-video-') 
+          ? vid.id.split('existing-video-')[1] 
+          : vid.id;
+        data.append('existing_videos', mediaId);
+      });
+    }
+
+    // 2. Send new media files
+    if (formData.images && formData.images.length > 0) {
+      const newImageFiles = formData.images.filter(img => img && img.file);
       const sortedImages = newImageFiles.sort((a, b) => {
         if (a.isPrimary && !b.isPrimary) return -1;
         if (!a.isPrimary && b.isPrimary) return 1;
-        return 0; // maintain original order for non-primary images
+        return 0;
       });
       
-      // Append sorted images to FormData
+      sortedImages.forEach(imageFile => {
+        data.append('new_images', imageFile.file);
+      });
+    }
+
+    if (formData.videos && formData.videos.length > 0) {
+      const newVideoFiles = formData.videos.filter(vid => vid && vid.file);
+      newVideoFiles.slice(0, 3).forEach(videoFile => {
+        data.append('new_videos', videoFile.file);
+      });
+    }
+
+    // 3. Send deleted media IDs
+    if (formData.deletedMedia && formData.deletedMedia.length > 0) {
+      formData.deletedMedia.forEach((mediaId) => {
+        data.append('deleted_media', mediaId);
+      });
+    }
+
+  } else {
+    // === CREATE MODE: Send all media as new ===
+    
+    // Image files for new property
+    if (formData.images && formData.images.length > 0) {
+      const newImageFiles = formData.images.filter(img => img && img.file);
+      const sortedImages = newImageFiles.sort((a, b) => {
+        if (a.isPrimary && !b.isPrimary) return -1;
+        if (!a.isPrimary && b.isPrimary) return 1;
+        return 0;
+      });
+      
       sortedImages.forEach(imageFile => {
         data.append('image', imageFile.file);
       });
     }
 
-    // Video files (up to 3) - only append new files (with file property)
+    // Video files for new property
     if (formData.videos && formData.videos.length > 0) {
-      formData.videos.slice(0, 3).forEach(videoFile => { // Remove the 'index' parameter
+      formData.videos.slice(0, 3).forEach(videoFile => {
         if (videoFile && videoFile.file) {
-          data.append('video', videoFile.file); // Change back to a single, consistent key 'video'
+          data.append('video', videoFile.file);
         }
       });
     }
+  }
 
-    return data;
+  return data;
 };
+
+
 
   // Enhanced validation function
   const validateStepData = (step, data = formData) => {
@@ -421,188 +780,415 @@ amenitiesArrayToSend.forEach(amenity => {
 
 
   // Updated handlePublish function with toast notifications
-  const handlePublish = async () => {
-    // Prevent double-click submissions
-    const now = Date.now();
-    if (isSubmitting || (now - lastSubmissionTime < 2000)) {
-      console.log('⚠️ Submission blocked - too soon after last attempt');
+//   const handlePublish = async () => {
+//     // Prevent double-click submissions
+//     const now = Date.now();
+//     if (isSubmitting || (now - lastSubmissionTime < 2000)) {
+//       console.log('⚠️ Submission blocked - too soon after last attempt');
+//       return;
+//     }
+
+//     // Validate all required steps
+//     let isValid = true;
+//     for (let step = 1; step <= 4; step++) {
+//       if (step !== 3 && !validateStep(step)) {
+//         isValid = false;
+//         setCurrentStep(step);
+//         return;
+//       }
+//     }
+//     if (!isValid) return;
+
+//     // Set submission states
+//     setIsSubmitting(true);
+//     setIsLoading(true);
+//     setIsUploadingMedia(false);
+//     setSubmitError(null);
+//     setLastSubmissionTime(now);
+
+//     try {
+//       // Get authentication token
+//       let token = accessToken || localStorage.getItem('accessToken');
+      
+//       console.group('🔐 Authentication Debug');
+//       console.log('Current user:', currentUser);
+//       console.log('User role:', currentUser?.role || 'Unknown');
+//       console.log('Access token available:', !!token);
+//       console.groupEnd();
+
+//       if (!token) {
+//         throw new Error('Authentication required. Please log in to continue.');
+//       }
+
+//       // Basic token format validation
+//       if (!token.includes('.') || token.split('.').length !== 3) {
+//         console.error('❌ Invalid token format detected');
+//         localStorage.removeItem('accessToken');
+//         localStorage.removeItem('refreshToken');
+//         throw new Error('Invalid authentication token. Please log in again.');
+//       }
+
+//       const payload = preparePayload();
+
+//       console.group('🚀 Property Operation');
+//       console.log('Operation:', isEditing ? 'UPDATE' : 'CREATE');
+//       console.log('Property ID:', id || 'New Property');
+//       console.log('User:', currentUser?.email);
+//       console.log('Role:', currentUser?.role);
+//       console.groupEnd();
+
+//       // Call appropriate API function
+//       const propertyData = isEditing
+//         ? await updateProperty(id, payload, token)
+//         : await createProperty(payload, token);
+
+//       console.log('✅ Property operation completed successfully');
+
+//       // Handle media upload status
+//       const hasNewMedia = 
+//         (formData.images && formData.images.some(img => img.file)) ||
+//         (formData.videos && formData.videos.some(vid => vid.file));
+
+//       if (hasNewMedia) {
+//         setIsUploadingMedia(true);
+//         console.log('📤 New media files were included in the request');
+//         await new Promise(resolve => setTimeout(resolve, 1000));
+//         setIsUploadingMedia(false);
+//       }
+
+//       // Clean up draft for new properties
+//       if (!isEditing) {
+//         localStorage.removeItem(DRAFT_KEY);
+//         console.log('🗑️ Cleaned up draft data');
+//       }
+
+//       // 🎉 SUCCESS TOAST NOTIFICATIONS
+//       const propertyTitle = formData.title || 'Property';
+      
+//       if (isEditing) {
+//         showToast(
+//           `"${propertyTitle}" has been updated successfully!`, 
+//           "success",
+//           {
+//             duration: 4000,
+//             showCloseButton: true
+//           }
+//         );
+//       } else {
+//         showToast(
+//           `"${propertyTitle}" has been created and published successfully!`, 
+//           "success",
+//           {
+//             duration: 5000,
+//             showCloseButton: true
+//           }
+//         );
+//       }
+
+//       console.log('🎉 Property published successfully!');
+      
+// // Navigate after a short delay to show toast
+//        setTimeout(() => {
+//          if (isEditing) {
+//          // For editing, we have the ID from URL params
+//            navigate(`/property-details?id=${id}`);
+//         } else {
+//           // For creation, check if we got an ID from the response
+//           if (propertyData?.id) {
+//             navigate(`/property-details?id=${propertyData.id}`);
+//           } else {
+//              // Fallback to agent dashboard if no ID returned
+//             console.warn('No property ID returned from creation, redirecting to dashboard');
+//             navigate('/agent-dashboard');
+//           }
+//         }
+//       }, 1500); // Delay to show toast
+      
+//     } catch (error) {
+//       console.error('🚨 Publish error:', error);
+      
+//       // 🚨 ERROR TOAST NOTIFICATIONS
+//       let errorTitle = isEditing ? 'Update Failed' : 'Publishing Failed';
+//       let errorMessage = '';
+      
+//       if (error.status === 401) {
+//         errorTitle = 'Authentication Required';
+//         errorMessage = 'Please log in again to continue.';
+//         localStorage.removeItem('accessToken');
+//         localStorage.removeItem('refreshToken');
+//       } else if (error.status === 403) {
+//         errorTitle = 'Permission Denied';
+//         errorMessage = error.message || 'You do not have permission to perform this action.';
+//       } else if (error.status === 404 && isEditing) {
+//         errorTitle = 'Property Not Found';
+//         errorMessage = 'This property may have been deleted by another user.';
+//       } else if (error.status === 400) {
+//         errorTitle = 'Validation Error';
+//         errorMessage = error.message || 'Please check your input and try again.';
+//       } else if (error.type === 'network') {
+//         errorTitle = 'Network Error';
+//         errorMessage = 'Please check your internet connection and try again.';
+//       } else if (error.message?.includes('token')) {
+//         errorTitle = 'Authentication Issue';
+//         errorMessage = 'Please refresh the page and try again.';
+//         localStorage.removeItem('accessToken');
+//         localStorage.removeItem('refreshToken');
+//       } else {
+//         errorMessage = error.message || 'An unexpected error occurred. Please try again.';
+//       }
+
+//       // Show error toast
+//       showToast(errorMessage, "error", {
+//         duration: 6000,
+//         showCloseButton: true
+//       });
+
+//       // Also set the submit error for the UI error display
+//       setSubmitError(`${errorTitle}: ${errorMessage}`);
+      
+//       // Reset submission time to allow retry after error
+//       setLastSubmissionTime(0);
+//     } finally {
+//       setIsSubmitting(false);
+//       setIsLoading(false);
+//       setIsUploadingMedia(false);
+//     }
+//   };
+
+const handlePublish = async () => {
+  // Prevent double-click submissions
+  const now = Date.now();
+  if (isSubmitting || (now - lastSubmissionTime < 2000)) {
+    console.log('⚠️ Submission blocked - too soon after last attempt');
+    return;
+  }
+
+  // Validate all required steps
+  let isValid = true;
+  for (let step = 1; step <= 4; step++) {
+    if (step !== 3 && !validateStep(step)) {
+      isValid = false;
+      setCurrentStep(step);
       return;
     }
+  }
+  if (!isValid) return;
 
-    // Validate all required steps
-    let isValid = true;
-    for (let step = 1; step <= 4; step++) {
-      if (step !== 3 && !validateStep(step)) {
-        isValid = false;
-        setCurrentStep(step);
-        return;
+  // Set submission states
+  setIsSubmitting(true);
+  setIsLoading(true);
+  setIsUploadingMedia(false);
+  setSubmitError(null);
+  setLastSubmissionTime(now);
+
+  try {
+    // Get authentication token
+    let token = accessToken || localStorage.getItem('accessToken');
+    
+    console.group('🔐 Authentication Debug');
+    console.log('Current user:', currentUser);
+    console.log('User role:', currentUser?.role || 'Unknown');
+    console.log('Access token available:', !!token);
+    console.groupEnd();
+
+    if (!token) {
+      throw new Error('Authentication required. Please log in to continue.');
+    }
+
+    // Basic token format validation
+    if (!token.includes('.') || token.split('.').length !== 3) {
+      console.error('❌ Invalid token format detected');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      throw new Error('Invalid authentication token. Please log in again.');
+    }
+
+    const payload = preparePayload();
+
+    // ENHANCED DEBUGGING
+    console.group('🚀 Property Operation Debug');
+    console.log('Operation:', isEditing ? 'UPDATE' : 'CREATE');
+    console.log('Property ID:', id || 'New Property');
+    console.log('User:', currentUser?.email);
+    console.log('Role:', currentUser?.role);
+    
+    // Debug FormData contents (be careful with large files)
+    console.log('📋 Payload Debug:');
+    for (let [key, value] of payload.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}:`, `File - ${value.name} (${value.size} bytes)`);
+      } else {
+        console.log(`${key}:`, value);
       }
     }
-    if (!isValid) return;
+    
+    // Debug current form data state
+    console.log('📊 Form Data State:');
+    console.log('Title:', formData.title);
+    console.log('Address:', formData.address);
+    console.log('Price:', formData.price);
+    console.log('Property Type:', formData.propertyType);
+    console.log('Status:', formData.status);
+    console.log('Coordinates:', { lat: formData.latitude, lng: formData.longitude });
+    console.log('Images (new):', formData.images?.filter(img => img.file)?.length || 0);
+    console.log('Videos (new):', formData.videos?.filter(vid => vid.file)?.length || 0);
+    console.log('Deleted Media:', formData.deletedMedia?.length || 0);
+    console.groupEnd();
 
-    // Set submission states
-    setIsSubmitting(true);
-    setIsLoading(true);
-    setIsUploadingMedia(false);
-    setSubmitError(null);
-    setLastSubmissionTime(now);
+    // Call appropriate API function
+    const propertyData = isEditing
+      ? await updateProperty(id, payload, token)
+      : await createProperty(payload, token);
 
-    try {
-      // Get authentication token
-      let token = accessToken || localStorage.getItem('accessToken');
-      
-      console.group('🔐 Authentication Debug');
-      console.log('Current user:', currentUser);
-      console.log('User role:', currentUser?.role || 'Unknown');
-      console.log('Access token available:', !!token);
-      console.groupEnd();
+    console.log('✅ Property operation completed successfully');
 
-      if (!token) {
-        throw new Error('Authentication required. Please log in to continue.');
-      }
+    // Handle media upload status
+    const hasNewMedia = 
+      (formData.images && formData.images.some(img => img.file)) ||
+      (formData.videos && formData.videos.some(vid => vid.file));
 
-      // Basic token format validation
-      if (!token.includes('.') || token.split('.').length !== 3) {
-        console.error('❌ Invalid token format detected');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        throw new Error('Invalid authentication token. Please log in again.');
-      }
-
-      const payload = preparePayload();
-
-      console.group('🚀 Property Operation');
-      console.log('Operation:', isEditing ? 'UPDATE' : 'CREATE');
-      console.log('Property ID:', id || 'New Property');
-      console.log('User:', currentUser?.email);
-      console.log('Role:', currentUser?.role);
-      console.groupEnd();
-
-      // Call appropriate API function
-      const propertyData = isEditing
-        ? await updateProperty(id, payload, token)
-        : await createProperty(payload, token);
-
-      console.log('✅ Property operation completed successfully');
-
-      // Handle media upload status
-      const hasNewMedia = 
-        (formData.images && formData.images.some(img => img.file)) ||
-        (formData.videos && formData.videos.some(vid => vid.file));
-
-      if (hasNewMedia) {
-        setIsUploadingMedia(true);
-        console.log('📤 New media files were included in the request');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setIsUploadingMedia(false);
-      }
-
-      // Clean up draft for new properties
-      if (!isEditing) {
-        localStorage.removeItem(DRAFT_KEY);
-        console.log('🗑️ Cleaned up draft data');
-      }
-
-      // 🎉 SUCCESS TOAST NOTIFICATIONS
-      const propertyTitle = formData.title || 'Property';
-      
-      if (isEditing) {
-        showToast(
-          `"${propertyTitle}" has been updated successfully!`, 
-          "success",
-          {
-            duration: 4000,
-            showCloseButton: true
-          }
-        );
-      } else {
-        showToast(
-          `"${propertyTitle}" has been created and published successfully!`, 
-          "success",
-          {
-            duration: 5000,
-            showCloseButton: true
-          }
-        );
-      }
-
-      console.log('🎉 Property published successfully!');
-      
-// Navigate after a short delay to show toast
-       setTimeout(() => {
-         if (isEditing) {
-         // For editing, we have the ID from URL params
-           navigate(`/property-details?id=${id}`);
-        } else {
-          // For creation, check if we got an ID from the response
-          if (propertyData?.id) {
-            navigate(`/property-details?id=${propertyData.id}`);
-          } else {
-             // Fallback to agent dashboard if no ID returned
-            console.warn('No property ID returned from creation, redirecting to dashboard');
-            navigate('/agent-dashboard');
-          }
-        }
-      }, 1500); // Delay to show toast
-      
-    } catch (error) {
-      console.error('🚨 Publish error:', error);
-      
-      // 🚨 ERROR TOAST NOTIFICATIONS
-      let errorTitle = isEditing ? 'Update Failed' : 'Publishing Failed';
-      let errorMessage = '';
-      
-      if (error.status === 401) {
-        errorTitle = 'Authentication Required';
-        errorMessage = 'Please log in again to continue.';
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-      } else if (error.status === 403) {
-        errorTitle = 'Permission Denied';
-        errorMessage = error.message || 'You do not have permission to perform this action.';
-      } else if (error.status === 404 && isEditing) {
-        errorTitle = 'Property Not Found';
-        errorMessage = 'This property may have been deleted by another user.';
-      } else if (error.status === 400) {
-        errorTitle = 'Validation Error';
-        errorMessage = error.message || 'Please check your input and try again.';
-      } else if (error.type === 'network') {
-        errorTitle = 'Network Error';
-        errorMessage = 'Please check your internet connection and try again.';
-      } else if (error.message?.includes('token')) {
-        errorTitle = 'Authentication Issue';
-        errorMessage = 'Please refresh the page and try again.';
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-      } else {
-        errorMessage = error.message || 'An unexpected error occurred. Please try again.';
-      }
-
-      // Show error toast
-      showToast(errorMessage, "error", {
-        duration: 6000,
-        showCloseButton: true
-      });
-
-      // Also set the submit error for the UI error display
-      setSubmitError(`${errorTitle}: ${errorMessage}`);
-      
-      // Reset submission time to allow retry after error
-      setLastSubmissionTime(0);
-    } finally {
-      setIsSubmitting(false);
-      setIsLoading(false);
+    if (hasNewMedia) {
+      setIsUploadingMedia(true);
+      console.log('📤 New media files were included in the request');
+      await new Promise(resolve => setTimeout(resolve, 1000));
       setIsUploadingMedia(false);
+    }
+
+    // Clean up draft for new properties
+    if (!isEditing) {
+      localStorage.removeItem(DRAFT_KEY);
+      console.log('🗑️ Cleaned up draft data');
+    }
+
+    // 🎉 SUCCESS TOAST NOTIFICATIONS
+    const propertyTitle = formData.title || 'Property';
+    
+    if (isEditing) {
+      showToast(
+        `"${propertyTitle}" has been updated successfully!`, 
+        "success",
+        {
+          duration: 4000,
+          showCloseButton: true
+        }
+      );
+    } else {
+      showToast(
+        `"${propertyTitle}" has been created and published successfully!`, 
+        "success",
+        {
+          duration: 5000,
+          showCloseButton: true
+        }
+      );
+    }
+
+    console.log('🎉 Property published successfully!');
+    
+    // Navigate after a short delay to show toast
+    setTimeout(() => {
+      if (isEditing) {
+        // For editing, we have the ID from URL params
+        navigate(`/property-details?id=${id}`);
+      } else {
+        // For creation, check if we got an ID from the response
+        if (propertyData?.id) {
+          navigate(`/property-details?id=${propertyData.id}`);
+        } else {
+          // Fallback to agent dashboard if no ID returned
+          console.warn('No property ID returned from creation, redirecting to dashboard');
+          navigate('/agent-dashboard');
+        }
+      }
+    }, 1500); // Delay to show toast
+    
+  } catch (error) {
+    console.error('🚨 Publish error:', error);
+    
+    // ENHANCED ERROR DEBUGGING
+    console.group('🚨 Error Analysis');
+    console.log('Error object:', error);
+    console.log('Error message:', error.message);
+    console.log('Error status:', error.status);
+    console.log('Error response:', error.response);
+    if (error.response?.data) {
+      console.log('Backend error details:', error.response.data);
+    }
+    console.groupEnd();
+    
+    // 🚨 ERROR TOAST NOTIFICATIONS
+    let errorTitle = isEditing ? 'Update Failed' : 'Publishing Failed';
+    let errorMessage = '';
+    
+    if (error.status === 401) {
+      errorTitle = 'Authentication Required';
+      errorMessage = 'Please log in again to continue.';
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    } else if (error.status === 403) {
+      errorTitle = 'Permission Denied';
+      errorMessage = error.message || 'You do not have permission to perform this action.';
+    } else if (error.status === 404 && isEditing) {
+      errorTitle = 'Property Not Found';
+      errorMessage = 'This property may have been deleted by another user.';
+    } else if (error.status === 400) {
+      errorTitle = 'Validation Error';
+      // Try to extract more specific error message
+      if (error.response?.data?.non_field_errors) {
+        errorMessage = error.response.data.non_field_errors[0];
+      } else if (error.response?.data) {
+        errorMessage = JSON.stringify(error.response.data);
+      } else {
+        errorMessage = error.message || 'Please check your input and try again.';
+      }
+    } else if (error.type === 'network') {
+      errorTitle = 'Network Error';
+      errorMessage = 'Please check your internet connection and try again.';
+    } else if (error.message?.includes('token')) {
+      errorTitle = 'Authentication Issue';
+      errorMessage = 'Please refresh the page and try again.';
+      localStorage.removeItem('accessToken');
+      localStorage.removeToken('refreshToken');
+    } else {
+      errorMessage = error.message || 'An unexpected error occurred. Please try again.';
+    }
+
+    // Show error toast
+    showToast(errorMessage, "error", {
+      duration: 6000,
+      showCloseButton: true
+    });
+
+    // Also set the submit error for the UI error display
+    setSubmitError(`${errorTitle}: ${errorMessage}`);
+    
+    // Reset submission time to allow retry after error
+    setLastSubmissionTime(0);
+  } finally {
+    setIsSubmitting(false);
+    setIsLoading(false);
+    setIsUploadingMedia(false);
+  }
+};
+
+
+
+  // Updated cancel handler with custom modal
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      setShowCancelModal(true);
+    } else {
+      navigate('/agent-dashboard');
     }
   };
 
-  // Cancel handler
-  const handleCancel = () => {
-    if (hasUnsavedChanges) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?');
-      if (!confirmed) return;
-    }
+  const handleConfirmCancel = () => {
+    setShowCancelModal(false);
     navigate('/agent-dashboard');
+  };
+
+  const handleCancelModal = () => {
+    setShowCancelModal(false);
   };
 
   // Render step form
@@ -662,6 +1248,13 @@ amenitiesArrayToSend.forEach(amenity => {
       {helmet}
       <div className="min-h-screen bg-background">
         <Header />
+        
+        {/* Custom Cancel Modal */}
+        <CancelModal 
+          isOpen={showCancelModal}
+          onConfirm={handleConfirmCancel}
+          onCancel={handleCancelModal}
+        />
         
         {/* Sticky Progress Header */}
         <div className="sticky top-16 lg:top-18 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
@@ -874,29 +1467,6 @@ amenitiesArrayToSend.forEach(amenity => {
                       <span className="sm:hidden">Next</span>
                     </Button>
                   ) : (
-                    // <Button
-                    //   variant="primary"
-                    //   onClick={handlePublish}
-                    //   disabled={isLoading || isUploadingMedia}
-                    //   size="sm"
-                    //   className="px-4 py-2 text-sm min-w-[120px] relative"
-                    // >
-                    //   {isLoading || isUploadingMedia ? (
-                    //     <div className="flex items-center justify-center gap-2">
-                    //       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    //       <span className="text-sm">
-                    //         {isUploadingMedia ? 'Uploading Media...' : 'Publishing...'}
-                    //       </span>
-                    //     </div>
-                    //   ) : (
-                    //     <div className="flex items-center gap-2">
-                    //       <Icon name="Rocket" size={14} />
-                    //       <span>
-                    //         {isEditing ? 'Update Property' : 'Publish Property'}
-                    //       </span>
-                    //     </div>
-                    //   )}
-                    // </Button>
                     
 <Button
   variant="primary"

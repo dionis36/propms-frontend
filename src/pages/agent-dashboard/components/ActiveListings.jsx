@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { deleteProperty } from '../../../services/api';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import StatusBadge from '../../../components/StatusBadge'; // Adjust the path as needed
+
 
 export default function ActiveListings({ listings, onDeleteListing, onUpdateProperty }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,7 +30,7 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
 
   // Constants
   const ITEMS_PER_PAGE = 8;
-  const STATUS_OPTIONS = ['All', 'Vacant', 'Occupied', 'Pending', 'Draft'];
+  const STATUS_OPTIONS = [ 'All', 'Available', 'Occupied' ];
   const SORT_OPTIONS = [
     { value: 'newest', label: 'Newest First' },
     { value: 'oldest', label: 'Oldest First' },
@@ -168,7 +170,7 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
     if (currentStatus.toLowerCase() === 'occupied') {
       setNewStatus('available');
       setAvailableFromDate(new Date().toISOString().split('T')[0]);
-    } else if (currentStatus.toLowerCase() === 'vacant' || currentStatus.toLowerCase() === 'available') {
+    } else if (currentStatus.toLowerCase() === 'available' || currentStatus.toLowerCase() === 'available') {
       setNewStatus('occupied');
       setAvailableFromDate('');
     }
@@ -375,15 +377,7 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
       <div className="text-right">
         <div className="text-3xl font-bold text-text-primary">{formatPrice(selectedListing.price)}</div>
         <div className="mt-2">
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-            selectedListing.status === "Vacant" 
-              ? "bg-yellow-100 text-yellow-800" 
-              : selectedListing.status === "Occupied"
-                ? "bg-red-100 text-red-800"
-                : "bg-green-100 text-green-800"
-          }`}>
-            {selectedListing.status}
-          </span>
+          <StatusBadge status={selectedListing.status.toUpperCase()} />
         </div>
       </div>
     </div>
@@ -619,15 +613,7 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
                           </p>
                         )}
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        listing.status === "Vacant" 
-                          ? "bg-warning-100 text-warning" 
-                          : listing.status === "Occupied"
-                            ? "bg-success-100 text-success"
-                            : "bg-info-100 text-info"
-                      }`}>
-                        {listing.status}
-                      </span>
+                        <StatusBadge status={listing.status.toUpperCase()} />
                     </div>
                     
                     <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">

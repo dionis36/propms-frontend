@@ -358,82 +358,84 @@ const handleSave = async (e) => {
                     <Icon name="User" size={20} className="mr-2 text-primary" /> {/* Icon and text style matching Property Insights heading */}
                     Contact Agent
                   </h4>
-
                   {/* Agent Profile Section - Centered Avatar, Name, Phone */}
-                  <div className="flex flex-col items-center text-center pb-6 border-b border-gray-100 mb-6">
-                    <UserAvatar
-                      firstName={property.agent?.first_name}
-                      lastName={property.agent?.last_name}
-                      size="w-18 h-18 mb-2" // Adjusted size and margin for compactness
-                    />
-                    <h3 className="font-semibold text-xl text-text-primary mb-1">
-                      {property.agent?.name}
-                    </h3>
-                    {property.agent_phone_number && (
-                      <div className="flex items-center justify-center space-x-2 text-sm text-text-secondary relative">
-                        <span>{property.agent_phone_number}</span>
-                        <button
-                          onClick={() => copyToClipboard(property.agent_phone_number, property.id)} // Use the copyToClipboard function
-                          className="p-1 text-text-secondary hover:text-primary-700 hover:bg-primary-50 rounded-full transition-colors duration-200"
-                          title="Copy phone number"
-                        >
-                          {/* Icon changes to Check when copied */}
-                          {copiedPhone === property.id ? (
-                            <Icon name="Check" size={12} className="text-green-500" />
-                          ) : (
-                            <Icon name="Copy" size={12} />
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Action Buttons Section - 2-Column Grid */}
-                  <div className="grid grid-cols-2 gap-3"> {/* Use grid for 2 columns with a small gap */}
-                    {/* WhatsApp Button */}
-                    {property.agent_whatsapp_number && (
-                      <button
-                        onClick={() => window.open(`https://wa.me/${property.agent_whatsapp_number?.replace(/[^\d+]/g, '')}`, '_blank')}
-                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
-                      >
-                        <Icon name="MessageSquare" size={18} className="text-green-600 mb-1" /> {/* Smaller icon and margin for compactness */}
-                        <span className="text-xs text-text-primary">WhatsApp</span> {/* Smaller text for compactness */}
-                      </button>
-                    )}
+<div className="flex flex-col items-center text-center pb-6 border-b border-gray-100 mb-6">
+  <UserAvatar
+    firstName={property.agent?.first_name}
+    lastName={property.agent?.last_name}
+    size="w-18 h-18 mb-2" // Adjusted size and margin for compactness
+  />
+  <h3 className="font-semibold text-xl text-text-primary mb-1">
+    {property.agent?.name}
+  </h3>
+  {property.agent_phone_number && (
+    <div className="flex items-center justify-center space-x-2 text-sm text-text-secondary relative">
+      <span>{property.agent_phone_number}</span>
+      <button
+        onClick={() => copyToClipboard(property.agent_phone_number, property.id)} // Use the copyToClipboard function
+        className="p-1 text-text-secondary hover:text-primary-700 hover:bg-primary-50 rounded-full transition-colors duration-200"
+        title="Copy phone number"
+      >
+        {/* Icon changes to Check when copied */}
+        {copiedPhone === property.id ? (
+          <Icon name="Check" size={12} className="text-green-500" />
+        ) : (
+          <Icon name="Copy" size={12} />
+        )}
+      </button>
+    </div>
+  )}
+</div>
 
-                    {/* Call now Button */}
-                    {property.agent_phone_number && (
-                      <button
-                        onClick={() => window.open(`tel:${property.agent_phone_number}`, '_blank')}
-                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
-                      >
-                        <Icon name="Phone" size={18} className="text-accent mb-1" />
-                        <span className="text-xs text-text-primary">Call now</span>
-                      </button>
-                    )}
+{/* Action Buttons Section - 2-Column Grid */}
+<div className="grid grid-cols-2 gap-3"> {/* Use grid for 2 columns with a small gap */}
+  {/* WhatsApp Button */}
+  {property.agent_whatsapp_number && (
+    <button
+      onClick={() => window.open(`https://wa.me/${property.agent_whatsapp_number?.replace(/[^\d+]/g, '')}`, '_blank')}
+      className="flex flex-col items-center justify-center p-3 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-colors duration-200 font-medium"
+    >
+      <Icon name="MessageSquare" size={18} className="text-green-600 mb-1" /> {/* Smaller icon and margin for compactness */}
+      <span className="text-xs text-text-primary">WhatsApp</span> {/* Smaller text for compactness */}
+    </button>
+  )}
 
-                    {/* Send message (SMS) Button */}
-                    {property.agent_phone_number && (
-                      <button
-                        onClick={() => window.open(`sms:${property.agent_phone_number}`, '_blank')}
-                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
-                      >
-                        <Icon name="MessageCircle" size={18} className="text-blue-500 mb-1" />
-                        <span className="text-xs text-text-primary">Send SMS</span>
-                      </button>
-                    )}
+  {/* Call now Button */}
+  {property.agent_phone_number && (
+    <button
+      onClick={() => window.open(`tel:${property.agent_phone_number}`, '_blank')}
+      className="flex flex-col items-center justify-center p-3 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors duration-200 font-medium"
+    >
+      <Icon name="Phone" size={18} className="text-accent mb-1" />
+      <span className="text-xs text-text-primary">Call now</span>
+    </button>
+  )}
 
-                    {/* Send Email Button */}
-                    {property.agent_email && (
-                      <button
-                        onClick={() => window.open(`mailto:${property.agent_email}`, '_blank')}
-                        className="flex flex-col items-center justify-center p-3 bg-secondary-50 rounded-md hover:bg-secondary-100 transition-colors duration-200 font-medium"
-                      >
-                        <Icon name="Mail" size={18} className="text-purple-500 mb-1" />
-                        <span className="text-xs text-text-primary">Send Email</span>
-                      </button>
-                    )}
-                  </div>
+  {/* Send message (SMS) Button */}
+  {property.agent_phone_number && (
+    <button
+      onClick={() => window.open(`sms:${property.agent_phone_number}`, '_blank')}
+      className="flex flex-col items-center justify-center p-3 bg-sky-50 border border-sky-200 rounded-md hover:bg-sky-100 transition-colors duration-200 font-medium"
+    >
+      <Icon name="MessageCircle" size={18} className="text-blue-500 mb-1" />
+      <span className="text-xs text-text-primary">Send SMS</span>
+    </button>
+  )}
+
+  {/* Send Email Button */}
+  {property.agent_email && (
+    <button
+      onClick={() => window.open(`mailto:${property.agent_email}`, '_blank')}
+      className="flex flex-col items-center justify-center p-3 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-colors duration-200 font-medium"
+    >
+      <Icon name="Mail" size={18} className="text-purple-500 mb-1" />
+      <span className="text-xs text-text-primary">Send Email</span>
+    </button>
+  )}
+</div>
+
+
+
                 </div>
 
                 {/* Property Insights Card */}
