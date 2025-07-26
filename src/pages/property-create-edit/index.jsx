@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../../contexts/AuthContext';
 import { createProperty, getPropertyById, updateProperty } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext'; // Adjust path as needed
 
 
 // Component imports
@@ -21,6 +22,8 @@ const PropertyCreateEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
+  const { showToast } = useToast();
+
 
 
   // State management
@@ -34,6 +37,8 @@ const PropertyCreateEdit = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastSubmissionTime, setLastSubmissionTime] = useState(0);
 
   const steps = [
     'Property Details',
@@ -415,109 +420,169 @@ amenitiesArrayToSend.forEach(amenity => {
 
 
 
-// Replace your existing handlePublish function with this updated version
-// Make sure to import updateProperty at the top: import { createProperty, getPropertyById, updateProperty } from '../../services/api';
-
-const handlePublish = async () => {
-  // Validate all required steps
-  let isValid = true;
-  for (let step = 1; step <= 4; step++) {
-    if (step !== 3 && !validateStep(step)) {
-      isValid = false;
-      setCurrentStep(step);
-      break;
+  // Updated handlePublish function with toast notifications
+  const handlePublish = async () => {
+    // Prevent double-click submissions
+    const now = Date.now();
+    if (isSubmitting || (now - lastSubmissionTime < 2000)) {
+      console.log('⚠️ Submission blocked - too soon after last attempt');
+      return;
     }
-  }
-  if (!isValid) return;
 
-  setIsLoading(true);
-  setIsUploadingMedia(false);
-  setSubmitError(null);
-
-  // Get token fresh inside the function
-  const token = accessToken || localStorage.getItem('accessToken');
-
-  console.group('🔐 Auth Debug');
-  console.log('currentUser:', currentUser);
-  console.log('accessToken from context:', accessToken);
-  console.log('localStorage accessToken:', localStorage.getItem('accessToken'));
-  console.log('Final token selected:', token);
-  console.groupEnd();
-
-  if (!token) {
-    setSubmitError('Authentication token not found. Please log in again.');
-    setIsLoading(false);
-    return;
-  }
-
-  try {
-    const payload = preparePayload();
-
-    console.group('🚀 Publishing Property');
-    console.log('Operation:', isEditing ? 'UPDATE' : 'CREATE');
-    console.log('Endpoint:', isEditing ? `PATCH /property/${id}/` : 'POST /property/submit/');
-    for (let [key, value] of payload.entries()) {
-      if (value instanceof File) {
-        console.log(`${key}:`, `File(${value.name}, ${value.size} bytes)`);
-      } else {
-        console.log(`${key}:`, value);
+    // Validate all required steps
+    let isValid = true;
+    for (let step = 1; step <= 4; step++) {
+      if (step !== 3 && !validateStep(step)) {
+        isValid = false;
+        setCurrentStep(step);
+        return;
       }
     }
-    console.log('Token being sent:', token);
-    console.groupEnd();
+    if (!isValid) return;
 
-    // Call appropriate API function based on mode
-    const propertyData = isEditing
-      ? await updateProperty(id, payload, token)
-      : await createProperty(payload, token);
-
-    console.log('✅ Property saved successfully:', propertyData);
-
-    // Check if there are new media files to upload
-    const hasNewMedia = 
-      (formData.images && formData.images.some(img => img.file)) ||
-      (formData.videos && formData.videos.some(vid => vid.file));
-
-    if (hasNewMedia) {
-      setIsUploadingMedia(true);
-      console.log('📤 New media files detected and uploaded with the property...');
-
-      // Note: With the current setup, media files are uploaded directly with the property
-      // If you need separate media upload endpoint, implement uploadPropertyMedia function
-      
-      console.log('🖼️ Media files have been processed with the property update');
-    }
-
-    // Clean up draft for new properties
-    if (!isEditing) {
-      localStorage.removeItem(DRAFT_KEY);
-    }
-
-    console.log('🎉 Property published successfully!');
-    
-    // Navigate to the property detail page
-    navigate(`/property/${propertyData?.id || id}`);
-    
-  } catch (error) {
-    console.error('🚨 Publish error:', error);
-    
-    if (error.status === 401) {
-      setSubmitError('Authentication failed. Please log in again and try publishing.');
-    } else if (error.status === 400) {
-      setSubmitError(`Validation error: ${error.message}`);
-    } else if (error.status === 404 && isEditing) {
-      setSubmitError('Property not found. It may have been deleted.');
-    } else if (error.status === 403) {
-      setSubmitError('You do not have permission to perform this action.');
-    } else {
-      setSubmitError(error.message || 'An error occurred during publishing. Please try again.');
-    }
-  } finally {
-    setIsLoading(false);
+    // Set submission states
+    setIsSubmitting(true);
+    setIsLoading(true);
     setIsUploadingMedia(false);
-  }
-};
+    setSubmitError(null);
+    setLastSubmissionTime(now);
 
+    try {
+      // Get authentication token
+      let token = accessToken || localStorage.getItem('accessToken');
+      
+      console.group('🔐 Authentication Debug');
+      console.log('Current user:', currentUser);
+      console.log('User role:', currentUser?.role || 'Unknown');
+      console.log('Access token available:', !!token);
+      console.groupEnd();
+
+      if (!token) {
+        throw new Error('Authentication required. Please log in to continue.');
+      }
+
+      // Basic token format validation
+      if (!token.includes('.') || token.split('.').length !== 3) {
+        console.error('❌ Invalid token format detected');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        throw new Error('Invalid authentication token. Please log in again.');
+      }
+
+      const payload = preparePayload();
+
+      console.group('🚀 Property Operation');
+      console.log('Operation:', isEditing ? 'UPDATE' : 'CREATE');
+      console.log('Property ID:', id || 'New Property');
+      console.log('User:', currentUser?.email);
+      console.log('Role:', currentUser?.role);
+      console.groupEnd();
+
+      // Call appropriate API function
+      const propertyData = isEditing
+        ? await updateProperty(id, payload, token)
+        : await createProperty(payload, token);
+
+      console.log('✅ Property operation completed successfully');
+
+      // Handle media upload status
+      const hasNewMedia = 
+        (formData.images && formData.images.some(img => img.file)) ||
+        (formData.videos && formData.videos.some(vid => vid.file));
+
+      if (hasNewMedia) {
+        setIsUploadingMedia(true);
+        console.log('📤 New media files were included in the request');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setIsUploadingMedia(false);
+      }
+
+      // Clean up draft for new properties
+      if (!isEditing) {
+        localStorage.removeItem(DRAFT_KEY);
+        console.log('🗑️ Cleaned up draft data');
+      }
+
+      // 🎉 SUCCESS TOAST NOTIFICATIONS
+      const propertyTitle = formData.title || 'Property';
+      
+      if (isEditing) {
+        showToast(
+          `"${propertyTitle}" has been updated successfully!`, 
+          "success",
+          {
+            duration: 4000,
+            showCloseButton: true
+          }
+        );
+      } else {
+        showToast(
+          `"${propertyTitle}" has been created and published successfully!`, 
+          "success",
+          {
+            duration: 5000,
+            showCloseButton: true
+          }
+        );
+      }
+
+      console.log('🎉 Property published successfully!');
+      
+      // Navigate to property detail page after a short delay
+      setTimeout(() => {
+        navigate(`/property-details?id=${propertyData?.id || id}`);
+      }, 1500); // Increased delay to show toast
+      
+    } catch (error) {
+      console.error('🚨 Publish error:', error);
+      
+      // 🚨 ERROR TOAST NOTIFICATIONS
+      let errorTitle = isEditing ? 'Update Failed' : 'Publishing Failed';
+      let errorMessage = '';
+      
+      if (error.status === 401) {
+        errorTitle = 'Authentication Required';
+        errorMessage = 'Please log in again to continue.';
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      } else if (error.status === 403) {
+        errorTitle = 'Permission Denied';
+        errorMessage = error.message || 'You do not have permission to perform this action.';
+      } else if (error.status === 404 && isEditing) {
+        errorTitle = 'Property Not Found';
+        errorMessage = 'This property may have been deleted by another user.';
+      } else if (error.status === 400) {
+        errorTitle = 'Validation Error';
+        errorMessage = error.message || 'Please check your input and try again.';
+      } else if (error.type === 'network') {
+        errorTitle = 'Network Error';
+        errorMessage = 'Please check your internet connection and try again.';
+      } else if (error.message?.includes('token')) {
+        errorTitle = 'Authentication Issue';
+        errorMessage = 'Please refresh the page and try again.';
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      } else {
+        errorMessage = error.message || 'An unexpected error occurred. Please try again.';
+      }
+
+      // Show error toast
+      showToast(errorMessage, "error", {
+        duration: 6000,
+        showCloseButton: true
+      });
+
+      // Also set the submit error for the UI error display
+      setSubmitError(`${errorTitle}: ${errorMessage}`);
+      
+      // Reset submission time to allow retry after error
+      setLastSubmissionTime(0);
+    } finally {
+      setIsSubmitting(false);
+      setIsLoading(false);
+      setIsUploadingMedia(false);
+    }
+  };
 
   // Cancel handler
   const handleCancel = () => {
@@ -797,29 +862,58 @@ const handlePublish = async () => {
                       <span className="sm:hidden">Next</span>
                     </Button>
                   ) : (
-                    <Button
-                      variant="primary"
-                      onClick={handlePublish}
-                      disabled={isLoading || isUploadingMedia}
-                      size="sm"
-                      className="px-4 py-2 text-sm min-w-[120px] relative"
-                    >
-                      {isLoading || isUploadingMedia ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          <span className="text-sm">
-                            {isUploadingMedia ? 'Uploading Media...' : 'Publishing...'}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Icon name="Rocket" size={14} />
-                          <span>
-                            {isEditing ? 'Update Property' : 'Publish Property'}
-                          </span>
-                        </div>
-                      )}
-                    </Button>
+                    // <Button
+                    //   variant="primary"
+                    //   onClick={handlePublish}
+                    //   disabled={isLoading || isUploadingMedia}
+                    //   size="sm"
+                    //   className="px-4 py-2 text-sm min-w-[120px] relative"
+                    // >
+                    //   {isLoading || isUploadingMedia ? (
+                    //     <div className="flex items-center justify-center gap-2">
+                    //       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    //       <span className="text-sm">
+                    //         {isUploadingMedia ? 'Uploading Media...' : 'Publishing...'}
+                    //       </span>
+                    //     </div>
+                    //   ) : (
+                    //     <div className="flex items-center gap-2">
+                    //       <Icon name="Rocket" size={14} />
+                    //       <span>
+                    //         {isEditing ? 'Update Property' : 'Publish Property'}
+                    //       </span>
+                    //     </div>
+                    //   )}
+                    // </Button>
+                    
+<Button
+  variant="primary"
+  onClick={handlePublish}
+  disabled={isLoading || isUploadingMedia || isSubmitting}
+  size="sm"
+  className="px-4 py-2 text-sm min-w-[120px] relative"
+>
+  {(isLoading || isUploadingMedia || isSubmitting) ? (
+    <div className="flex items-center justify-center gap-2">
+      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+      <span className="text-sm">
+        {isSubmitting 
+          ? (isEditing ? 'Updating...' : 'Publishing...') 
+          : isUploadingMedia 
+          ? 'Uploading Media...' 
+          : 'Processing...'
+        }
+      </span>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
+      <Icon name="Rocket" size={14} />
+      <span>
+        {isEditing ? 'Update Property' : 'Publish Property'}
+      </span>
+    </div>
+  )}
+</Button>
                   )}
                 </div>
               </div>

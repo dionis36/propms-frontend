@@ -3,16 +3,30 @@
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
 
+/**
+ * Generic helper function to make API requests.
+ * Handles headers, JSON stringification, FormData, and basic error handling.
+ * @param {string} url - The full URL for the API endpoint.
+ * @param {string} method - The HTTP method (e.g., 'GET', 'POST', 'PUT', 'PATCH', 'DELETE').
+ * @param {Object|FormData|null} data - The request body data. Can be an object (will be JSON stringified) or FormData.
+ * @param {string|null} token - The authorization token, if required.
+ * @returns {Promise<Object|string|null>} The parsed JSON response, raw text, or null for 204 No Content.
+ * @throws {Error} Throws an error object with status and data properties on API failure or network issues.
+ */
 async function makeRequest(url, method, data = null, token = null) {
   console.log('🌐 API Request:', url);
-  console.trace('📍 Called from:');
+  console.trace('📍 Called from:'); // Helps trace where the API call originated
+
   const headers = {};
 
-  // Only set JSON content type for non-FormData
+  // Only set 'Content-Type': 'application/json' for non-FormData bodies.
+  // When sending FormData, the browser automatically sets 'Content-Type' to 'multipart/form-data'
+  // along with the correct boundary, so we should not set it manually.
   if (!(data instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
 
+  // Add Authorization header if a token is provided
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -22,36 +36,61 @@ async function makeRequest(url, method, data = null, token = null) {
     headers: headers,
   };
 
+  // Attach the request body if data is provided
   if (data) {
+    // If data is FormData, send it directly. Otherwise, stringify it for JSON.
     config.body = data instanceof FormData ? data : JSON.stringify(data);
   }
 
   const response = await fetch(url, config);
 
+  // --- Error Handling for Non-OK Responses (status code not in 2xx range) ---
   if (!response.ok) {
     let errorData;
-    let errorMessage = 'Request failed';
+    let errorMessage = 'Request failed'; // Default error message
 
     try {
+      // Attempt to parse error response as JSON for detailed error messages
       errorData = await response.json();
+      // Prioritize 'detail' field, otherwise stringify the entire error object
       errorMessage = errorData.detail || JSON.stringify(errorData);
     } catch (e) {
+      // If JSON parsing fails, try to get the response as plain text
       const errorText = await response.text();
-      errorMessage = errorText || 'Request failed with no readable body';
+      errorMessage = errorText || 'Request failed with no readable body'; // Fallback message
     }
 
+    // Create a custom Error object with status and original error data
     const error = new Error(errorMessage);
     error.status = response.status;
-    error.data = errorData;
+    error.data = errorData; // Attach original error data for more granular handling upstream
 
-    throw error;
+    console.error('🚨 API Error:', {
+      url,
+      method,
+      status: response.status,
+      errorMessage,
+      errorData
+    });
+    throw error; // Re-throw the extended error
   }
 
+  // --- Success Response Handling ---
+
+  // Handle 204 No Content specifically, as there's no body to parse
+  if (response.status === 204) {
+    console.log(`✅ API Success (204 No Content): ${url}`);
+    return null; // Indicate success with no content
+  }
+
+  // Check content type to determine how to parse the response body
   const contentType = response.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
-    return response.json();
+    console.log(`✅ API Success (JSON): ${url}`);
+    return response.json(); // Parse as JSON
   } else {
-    return response.text();
+    console.log(`✅ API Success (Text/Other): ${url}`);
+    return response.text(); // Parse as plain text or other non-JSON content
   }
 }
 
@@ -60,8 +99,7 @@ async function makeRequest(url, method, data = null, token = null) {
 export const loginUser = async (email, password) => {
     // Uses makeRequest for consistency
     const response = await makeRequest(`${API_BASE}/api/token/`, 'POST', { email, password });
-
-    return response; // Returns the token response directly if no decoding here
+    return response;
 };
 
 // getUserProfile function to fetch the user's profile
@@ -73,7 +111,7 @@ export const getUserProfile = async (accessToken) => {
 
 // This function updates the user profile with the provided data
 export async function updateUserProfile(token, payload) {
-    console.log('🧪 About to PATCH with user:', payload);
+    console.log('🧪 About to PATCH user profile with:', payload);
     // Uses makeRequest for consistency
     return makeRequest(`${API_BASE}/api/users/me/`, 'PATCH', payload, token);
 }
@@ -100,80 +138,44 @@ export const createProperty = async (formData, token) => {
     // No need to manually set 'Content-Type': 'multipart/form-data' as fetch does it automatically for FormData.
     return makeRequest(`${API_BASE}/api/property/submit/`, 'POST', formData, token);
 };
-// export const updateProperty = async (propertyId, payload, token) => {
-//   // Use makeRequest for consistency.
-//   // The payload (FormData) will be handled correctly by makeRequest.
-//   return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'PATCH', payload, token);
-// };
 
+// UPDATE PROPERTY - Add this function
 export const updateProperty = async (propertyId, formData, token) => {
-  const url = `${API_BASE}/property/${propertyId}/`;
-  
-  try {
     console.log('🔄 Updating property:', propertyId);
-    
-    // Log FormData entries for debugging
-    console.group('📝 Update Payload');
-    for (let [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`${key}:`, `File(${value.name}, ${value.size} bytes)`);
-      } else {
-        console.log(`${key}:`, value);
-      }
-    }
-    console.groupEnd();
-
-    const response = await fetch(url, {
-      method: 'PATCH', // Using PATCH for partial updates
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // Don't set Content-Type header - let browser set it with boundary for FormData
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      
-      try {
-        const errorData = await response.json();
-        
-        // Handle validation errors
-        if (errorData.detail) {
-          errorMessage = errorData.detail;
-        } else if (typeof errorData === 'object') {
-          // Format field-specific errors
-          const fieldErrors = Object.entries(errorData)
-            .map(([field, errors]) => {
-              const errorList = Array.isArray(errors) ? errors : [errors];
-              return `${field}: ${errorList.join(', ')}`;
-            })
-            .join('; ');
-          errorMessage = fieldErrors || errorMessage;
-        }
-      } catch (parseError) {
-        console.warn('Could not parse error response:', parseError);
-      }
-      
-      const error = new Error(errorMessage);
-      error.status = response.status;
-      throw error;
-    }
-
-    const data = await response.json();
-    console.log('✅ Property updated successfully:', data);
-    return data;
-
-  } catch (error) {
-    console.error('🚨 Update property error:', error);
-    
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('Network error. Please check your connection and try again.');
-    }
-    
-    throw error;
-  }
+    // Use PUT method to update the entire property resource
+    // FormData is handled correctly by makeRequest function
+    return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'PUT', formData, token);
 };
+
+// DELETE PROPERTY - Add this function  
+export const deleteProperty = async (propertyId, token) => {
+    console.log('🗑️ Deleting property:', propertyId);
+    // DELETE method with no body data needed
+    return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'DELETE', null, token);
+};
+
+// ALTERNATIVE: If your backend uses PATCH for partial updates instead of PUT
+export const patchProperty = async (propertyId, formData, token) => {
+    console.log('🔄 Patching property:', propertyId);
+    // Use PATCH method for partial updates
+    return makeRequest(`${API_BASE}/api/properties/${propertyId}/`, 'PATCH', formData, token);
+};
+
+// BULK DELETE - If you need to delete multiple properties
+export const deleteMultipleProperties = async (propertyIds, token) => {
+    console.log('🗑️ Bulk deleting properties:', propertyIds);
+    // Send array of property IDs in request body
+    return makeRequest(`${API_BASE}/api/properties/bulk-delete/`, 'DELETE', { property_ids: propertyIds }, token);
+};
+
+// TOGGLE PROPERTY STATUS - If you have a separate endpoint for status changes
+export const togglePropertyStatus = async (propertyId, status, token) => {
+    console.log('🔄 Toggling property status:', propertyId, 'to', status);
+    // PATCH just the status field
+    return makeRequest(`${API_BASE}/api/properties/${propertyId}/status/`, 'PATCH', { status }, token);
+};
+
+
 
 // display property details
 export const getPropertyDetails = async (propertyId, token = null) => {
@@ -207,12 +209,6 @@ export const getAllProperties = async () => {
   return makeRequest(`${API_BASE}/api/properties/`, 'GET', null, null);
 };
 
-// export const getFilteredProperties = async (params = {}) => {
-//   const queryString = new URLSearchParams(params).toString();
-//   return makeRequest(`${API_BASE}/api/properties/?${queryString}`, 'GET');
-// };
-
-
 // Save a property to favorites
 export const saveFavorite = (propertyId, accessToken) => {
   return makeRequest(`${API_BASE}/api/favorites/`, 'POST', { property_id: propertyId }, accessToken);
@@ -220,6 +216,7 @@ export const saveFavorite = (propertyId, accessToken) => {
 
 // Remove a favorite by property ID (using the custom DRF view)
 export const removeFavorite = (propertyId, accessToken) => {
+  // DELETE request typically does not have a body, so data is null
   return makeRequest(`${API_BASE}/api/favorites/remove-by-property/${propertyId}/`, 'DELETE', null, accessToken);
 };
 
@@ -227,3 +224,6 @@ export const removeFavorite = (propertyId, accessToken) => {
 export const getFavorites = (accessToken) => {
   return makeRequest(`${API_BASE}/api/favorites/`, 'GET', null, accessToken);
 };
+
+
+
