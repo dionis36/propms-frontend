@@ -30,7 +30,9 @@ const Routes = () => {
           <Route path="/homepage" element={<Homepage />} />
           <Route path="/property-listings" element={<PropertyListings />} />
           <Route path="/property-details" element={<PropertyDetails />} />
-          <Route path="/login-register" element={<LoginRegister />} />
+          {/* <Route path="/login-register" element={<LoginRegister />} /> */}
+          <Route path="/login" element={<LoginRegister />} />
+          <Route path="/register" element={<LoginRegister />} />
           <Route path="/unauthorized" element={<Unauthorized />} /> {/* Route for unauthorized access */}
 
           {/* Protected Routes - Authenticated Users Only */}

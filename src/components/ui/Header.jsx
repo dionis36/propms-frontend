@@ -259,14 +259,14 @@ const userMenuItems = [
               ) : (
                 <div className="hidden md:flex items-center space-x-3">
                   <Link
-                    to="/login-register?mode=login"
+                    to="/login"
                     className="text-sm font-medium text-text-secondary hover:text-text-primary 
                              transition-colors duration-200"
                   >
                     Sign In
                   </Link>
                   <Link
-                    to="/login-register?mode=register"
+                    to="/register"
                     className="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium 
                              hover:bg-primary-700 transition-all duration-200 ease-out micro-interaction"
                   >

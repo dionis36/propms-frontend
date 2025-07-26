@@ -528,10 +528,22 @@ amenitiesArrayToSend.forEach(amenity => {
 
       console.log('🎉 Property published successfully!');
       
-      // Navigate to property detail page after a short delay
-      setTimeout(() => {
-        navigate(`/property-details?id=${propertyData?.id || id}`);
-      }, 1500); // Increased delay to show toast
+// Navigate after a short delay to show toast
+       setTimeout(() => {
+         if (isEditing) {
+         // For editing, we have the ID from URL params
+           navigate(`/property-details?id=${id}`);
+        } else {
+          // For creation, check if we got an ID from the response
+          if (propertyData?.id) {
+            navigate(`/property-details?id=${propertyData.id}`);
+          } else {
+             // Fallback to agent dashboard if no ID returned
+            console.warn('No property ID returned from creation, redirecting to dashboard');
+            navigate('/agent-dashboard');
+          }
+        }
+      }, 1500); // Delay to show toast
       
     } catch (error) {
       console.error('🚨 Publish error:', error);
