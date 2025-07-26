@@ -88,6 +88,22 @@ const LoginRegister = () => {
               <ForgotPassword onBack={() => setShowForgotPassword(false)} />
             ) : (
               <>
+              {/* Header Section */}
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
+                    <Icon name="Users" size={32} color="white" />
+                  </div>
+                  <h1 className="text-3xl font-bold text-text-primary font-heading mb-2">
+                    {activeTab === 'login' ? 'Welcome Back' : 'Join EstateHub'}
+                  </h1>
+                  <p className="text-text-secondary">
+                    {activeTab === 'login'
+                      ? 'Sign in to access your account and continue your property journey'
+                      : 'Create your account and start exploring properties today'
+                    }
+                  </p>
+                </div>
+
                 {/* Tab Navigation */}
                 <div className="mb-8">
                   <div className="flex bg-secondary-100 rounded-lg p-1">

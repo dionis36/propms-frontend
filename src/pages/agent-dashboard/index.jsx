@@ -26,7 +26,7 @@ const AgentDashboard = () => {
       status: item.status === 'AVAILABLE' ? 'Vacant' : 'Occupied',
       type: item.property_type?.charAt(0).toUpperCase() + item.property_type?.slice(1).toLowerCase(),
       bedrooms: item.bedrooms || 0,
-      bathrooms: item.bedrooms || 0,
+      bathrooms: item.bathrooms || 0,
       createdAt: item.created_at,
       availableFrom: item.available_from,
       description: item.description,

@@ -35,12 +35,12 @@ const AuthForm = ({ mode, onForgotPassword }) => {
     // Remove all non-digit characters
     let digits = value.replace(/\D/g, '');
     
-    // Trim to 10 digits max (09XXXXXXXX)
+    // Trim to 10 digits max (0912345678)
     if (digits.length > 10) {
       digits = digits.substring(0, 10);
     }
     
-    // Apply formatting: 0XXX XXX XXX
+    // Apply formatting: 0712 123 123
     let formatted = '';
     for (let i = 0; i < digits.length; i++) {
       if (i === 4 || i === 7) {
@@ -234,7 +234,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
       if (!formData.phone) {
         newErrors.phone = 'Phone number is required';
       } else if (!validateTzPhone(formData.phone)) {
-        newErrors.phone = 'Invalid phone number. Format: 07XX XXX XXX or 06XX XXX XXX';
+        newErrors.phone = 'Invalid phone number. Format: 0712 123 123 or 0612 123 123';
       }
 
       // WhatsApp number validation for brokers (check against UPPERCASE role)
@@ -242,7 +242,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
         if (!formData.whatsappNumber) {
           newErrors.whatsappNumber = 'WhatsApp number is required for brokers';
         } else if (!validateTzPhone(formData.whatsappNumber)) {
-          newErrors.whatsappNumber = 'Invalid WhatsApp number. Format: 07XX XXX XXX or 06XX XXX XXX';
+          newErrors.whatsappNumber = 'Invalid WhatsApp number. Format: 0712 123 123 or 0612 123 123';
         }
       }
 
@@ -416,7 +416,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               type="text"
               value={formData.firstName}
               onChange={handleInputChange}
-              placeholder="Enter your first name"
+              placeholder="eg. John"
               className={fieldErrors.firstName ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
               disabled={loading}
             />
@@ -435,7 +435,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               type="text"
               value={formData.lastName}
               onChange={handleInputChange}
-              placeholder="Enter your last name"
+              placeholder="eg. Doe"
               className={fieldErrors.lastName ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
               disabled={loading}
             />
@@ -456,7 +456,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
               onChange={(e) => handlePhoneChange(e, 'phone')}
               onKeyDown={(e) => handlePhoneKeyDown(e, 'phone')}
               onPaste={(e) => handlePhonePaste(e, 'phone')}
-              placeholder="07XX XXX XXX"
+              placeholder="0712 123 123"
               className={fieldErrors.phone ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
               disabled={loading}
               ref={phoneInputRef}
@@ -480,7 +480,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
                 onChange={(e) => handlePhoneChange(e, 'whatsappNumber')}
                 onKeyDown={(e) => handlePhoneKeyDown(e, 'whatsappNumber')}
                 onPaste={(e) => handlePhonePaste(e, 'whatsappNumber')}
-                placeholder="07XX XXX XXX"
+                placeholder="07123 123 123"
                 className={fieldErrors.whatsappNumber ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
                 disabled={loading}
                 ref={whatsappInputRef}
@@ -504,7 +504,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
           type="email"
           value={formData.email}
           onChange={handleInputChange}
-          placeholder="Enter your email"
+          placeholder="eg. johndoe@propms.com"
           className={fieldErrors.email ? 'border-error-500 focus:ring-error-500 focus:border-error-500' : 'border-border focus:ring-primary-500 focus:border-primary-500'} 
           disabled={loading}
         />

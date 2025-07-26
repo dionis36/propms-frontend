@@ -1,6 +1,9 @@
 // pages/agent-dashboard/components/ActiveListings.jsx
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { deleteProperty } from '../../../services/api';
+import { useToast } from '../../../contexts/ToastContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export default function ActiveListings({ listings, onDeleteListing, onUpdateProperty }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -14,11 +17,14 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
   const [newStatus, setNewStatus] = useState('');
   const [availableFromDate, setAvailableFromDate] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isDeletingProperty, setIsDeletingProperty] = useState(false);
   const navigate = useNavigate();
   const listingsRef = useRef(null);
   const containerRef = useRef(null);
   const deleteModalRef = useRef(null);
   const statusModalRef = useRef(null);
+  const { showToast } = useToast();
+  const { accessToken } = useAuth();
 
   // Constants
   const ITEMS_PER_PAGE = 8;
@@ -130,12 +136,31 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
   };
 
   // Confirm delete
-  const confirmDelete = () => {
-    if (deletingListingId && onDeleteListing) {
-      onDeleteListing(deletingListingId);
+  const confirmDelete = async () => {
+    if (!deletingListingId) return;
+
+    setIsDeletingProperty(true);
+    try {
+      await deleteProperty(deletingListingId, accessToken);
+      
+      // Call the parent callback to update the listings state
+      if (onDeleteListing) {
+        onDeleteListing(deletingListingId);
+      }
+      
+      // Show success toast
+      showToast("Property deleted successfully", "success");
+      
+      // Close modal and reset selected listing
+      setShowDeleteModal(false);
+      setSelectedListing(null);
+      setDeletingListingId(null);
+    } catch (error) {
+      console.error('Failed to delete property:', error);
+      showToast("Failed to delete property. Please try again.", "error");
+    } finally {
+      setIsDeletingProperty(false);
     }
-    setShowDeleteModal(false);
-    setSelectedListing(null);
   };
 
   // Handle status update initiation
@@ -254,14 +279,16 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
               <button 
                 onClick={() => setShowDeleteModal(false)}
                 className="btn-secondary px-4 py-2 rounded-md"
+                disabled={isDeletingProperty}
               >
                 Cancel
               </button>
               <button 
                 onClick={confirmDelete}
-                className="bg-error text-white px-4 py-2 rounded-md hover:bg-error-dark transition-colors"
+                disabled={isDeletingProperty}
+                className="bg-error text-white px-4 py-2 rounded-md hover:bg-error-dark transition-colors disabled:opacity-50"
               >
-                Delete Property
+                {isDeletingProperty ? 'Deleting...' : 'Delete Property'}
               </button>
             </div>
           </div>
@@ -632,7 +659,8 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
                 <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-6">
                   <div className="text-text-secondary text-sm">
                     Page {currentPage} of {totalPages}
-                  </div><div className="flex items-center gap-2">
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}

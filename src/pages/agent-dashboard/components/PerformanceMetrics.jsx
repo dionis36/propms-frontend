@@ -47,11 +47,11 @@ const stats = [
     value: metrics.avgPrice,
     change: (() => {
       if (metrics.avg >= 1000000) {
-        return `${(metrics.avg / 1000000).toFixed(1)}M avg`;
+        return `${(metrics.avg / 1000000).toFixed(1)}M avg /month`;
       } else if (metrics.avg >= 1000) {
-        return `${Math.round(metrics.avg / 1000)}K avg`;
+        return `${Math.round(metrics.avg / 1000)}K avg /month`;
       } else {
-        return `${metrics.avg} avg`;
+        return `${metrics.avg} avg /month`;
       }
     })()
   }
