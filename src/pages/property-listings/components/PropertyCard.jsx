@@ -18,6 +18,7 @@ const PropertyCard = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(null);
+  const [isSaved, setIsSaved] = useState(property?.isSaved || false); // Local state for toggle
   const { showToast } = useToast();
   const { accessToken, user } = useAuth();
   const agentFullName = property.agent.name;
@@ -81,16 +82,18 @@ const PropertyCard = ({
     }
 
     try {
-      if (!property?.isSaved) {
+      if (!isSaved) {
         await saveFavorite(property.id, accessToken);
+        setIsSaved(true); // Update local state
         showToast('Property saved to favorites!', 'success');
       } else {
         await removeFavorite(property.id, accessToken);
+        setIsSaved(false); // Update local state
         showToast('Removed from favorites.', 'info');
       }
 
       // Optional: toggle state in parent
-      onSave?.(property.id, !property.isSaved);
+      onSave?.(property.id, !isSaved);
     } catch (error) {
       console.error('Favorite error:', error);
       showToast(error.message || 'Failed to update favorite.', 'error');
@@ -174,14 +177,14 @@ const PropertyCard = ({
                 onClick={handleSave}
                 className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center
                            transition-all duration-200 ease-out ${
-                  property?.isSaved
+                  isSaved
                     ? 'bg-error text-white' :'bg-surface/90 text-text-secondary hover:bg-surface hover:text-error'
                 }`}
               >
                 <Icon 
                   name="Heart" 
                   size={16} 
-                  fill={property?.isSaved ? "currentColor" : "none"} 
+                  fill={isSaved ? "currentColor" : "none"} 
                 />
               </button>
             </div>
@@ -336,14 +339,14 @@ const PropertyCard = ({
           onClick={handleSave}
           className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center
                      transition-all duration-200 ease-out ${
-            property?.isSaved
+            isSaved
               ? 'bg-error text-white' :'bg-surface/90 text-text-secondary hover:bg-surface hover:text-error'
           }`}
         >
           <Icon 
             name="Heart" 
             size={18} 
-            fill={property?.isSaved ? "currentColor" : "none"} 
+            fill={isSaved ? "currentColor" : "none"} 
           />
         </button>
 

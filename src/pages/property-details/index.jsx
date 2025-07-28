@@ -44,6 +44,13 @@ const PropertyDetails = () => {
     });
   };
 
+  // Helper function to convert TZ phone format (0712123123) to international (+255712123123)
+  const formatPhoneForSMS = (phone) => {
+    if (!phone) return '';
+    // Remove all spaces and replace leading 0 with +255
+    return phone.replace(/\s/g, '').replace(/^0/, '+255');
+  };
+
 
   // Similar properties mock data (you can replace this with another API call later)
   const similarProperties = [
@@ -358,7 +365,7 @@ const handleSave = async (e) => {
                     <Icon name="User" size={20} className="mr-2 text-primary" /> {/* Icon and text style matching Property Insights heading */}
                     Contact Agent
                   </h4>
-                  {/* Agent Profile Section - Centered Avatar, Name, Phone */}
+{/* Agent Profile Section - Centered Avatar, Name, Phone */}
 <div className="flex flex-col items-center text-center pb-6 border-b border-gray-100 mb-6">
   <UserAvatar
     firstName={property.agent?.first_name}
@@ -387,23 +394,25 @@ const handleSave = async (e) => {
   )}
 </div>
 
+
+
 {/* Action Buttons Section - 2-Column Grid */}
 <div className="grid grid-cols-2 gap-3"> {/* Use grid for 2 columns with a small gap */}
   {/* WhatsApp Button */}
   {property.agent_whatsapp_number && (
-    <button
-      onClick={() => window.open(`https://wa.me/${property.agent_whatsapp_number?.replace(/[^\d+]/g, '')}`, '_blank')}
-      className="flex flex-col items-center justify-center p-3 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-colors duration-200 font-medium"
-    >
-      <Icon name="MessageSquare" size={18} className="text-green-600 mb-1" /> {/* Smaller icon and margin for compactness */}
-      <span className="text-xs text-text-primary">WhatsApp</span> {/* Smaller text for compactness */}
-    </button>
+  <button
+    onClick={() => window.open(`https://wa.me/${formatPhoneForSMS(property.agent_whatsapp_number)}`, '_blank')}
+    className="flex flex-col items-center justify-center p-3 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-colors duration-200 font-medium"
+  >
+    <Icon name="MessageSquare" size={18} className="text-green-600 mb-1" />
+    <span className="text-xs text-text-primary">WhatsApp</span>
+  </button>
   )}
 
   {/* Call now Button */}
   {property.agent_phone_number && (
     <button
-      onClick={() => window.open(`tel:${property.agent_phone_number}`, '_blank')}
+      onClick={() => window.open(`tel:${formatPhoneForSMS(property.agent_phone_number)}`, '_blank')}
       className="flex flex-col items-center justify-center p-3 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors duration-200 font-medium"
     >
       <Icon name="Phone" size={18} className="text-accent mb-1" />
@@ -414,7 +423,7 @@ const handleSave = async (e) => {
   {/* Send message (SMS) Button */}
   {property.agent_phone_number && (
     <button
-      onClick={() => window.open(`sms:${property.agent_phone_number}`, '_blank')}
+      onClick={() => window.open(`sms:${formatPhoneForSMS(property.agent_phone_number)}`, '_blank')}
       className="flex flex-col items-center justify-center p-3 bg-sky-50 border border-sky-200 rounded-md hover:bg-sky-100 transition-colors duration-200 font-medium"
     >
       <Icon name="MessageCircle" size={18} className="text-blue-500 mb-1" />

@@ -1,17 +1,24 @@
 // src/pages/property-details/components/PropertyOverview.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import Image from '../../../components/AppImage';
 import StatusBadge from '../../../components/StatusBadge'; // Adjust path as needed
+import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
+import { saveFavorite, removeFavorite } from '../../../services/api';
 
 
 const PropertyOverview = ({ 
   property, 
-  isSaved, 
+  isSaved: initialIsSaved, 
   onSave, 
   onShare, 
   onContact 
 }) => {
+  const [isSaved, setIsSaved] = useState(initialIsSaved || false); // Local state for toggle
+  const { showToast } = useToast();
+  const { accessToken, user } = useAuth();
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -25,6 +32,37 @@ const PropertyOverview = ({
     return new Intl.NumberFormat('en-US').format(num);
   };
 
+  const handleSave = async () => {
+    // 1. Not logged in
+    if (!user || !accessToken) {
+      showToast('Login to save favorites.', 'error');
+      return;
+    }
+
+    // 2. Logged in, but not a tenant
+    if (user && user.role !== 'TENANT') {
+      showToast('Only tenants can save favorites.', 'error');
+      return;
+    }
+
+    try {
+      if (!isSaved) {
+        await saveFavorite(property.id, accessToken);
+        setIsSaved(true); // Update local state
+        showToast('Property saved to favorites!', 'success');
+      } else {
+        await removeFavorite(property.id, accessToken);
+        setIsSaved(false); // Update local state
+        showToast('Removed from favorites.', 'info');
+      }
+
+      // Optional: call parent callback
+      onSave?.(property.id, !isSaved);
+    } catch (error) {
+      console.error('Favorite error:', error);
+      showToast(error.message || 'Failed to update favorite.', 'error');
+    }
+  };
 
   return (
     <div className="card p-6">
@@ -57,7 +95,7 @@ const PropertyOverview = ({
         {/* Desktop Actions */}
         <div className="hidden lg:flex items-center space-x-3">
           <button
-            onClick={onSave}
+            onClick={handleSave}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all duration-200 ${
               isSaved 
                 ? 'bg-error text-white' :'bg-secondary-100 text-text-secondary hover:bg-error hover:text-white'
