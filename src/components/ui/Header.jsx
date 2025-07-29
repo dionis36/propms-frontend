@@ -386,14 +386,14 @@ const userMenuItems = [
                 <>
                   <div className="border-t border-border my-2"></div>
                   <Link
-                    to="/login-register?mode=login"
+                    to="/login"
                     className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-text-primary hover:bg-secondary-100"
                   >
                     <Icon name="LogIn" size={20} />
                     <span>Sign In</span>
                   </Link>
                   <Link
-                    to="/login-register?mode=register"
+                    to="/register"
                     className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-text-primary hover:bg-secondary-100"
                   >
                     <Icon name="UserPlus" size={20} />
