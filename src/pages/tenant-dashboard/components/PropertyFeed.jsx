@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { getAllProperties } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import StatusBadge from '../../../components/StatusBadge';
+
 
 export default function PropertyFeed() {
   const [properties, setProperties] = useState([]);
@@ -17,7 +19,7 @@ export default function PropertyFeed() {
           .map(p => ({
             id: p.id,
             name: p.title,
-            status: 'Vacant',
+            status: 'AVAILABLE',
             price: `TZS ${parseInt(p.price).toLocaleString()}`,
             // Get first valid image URL from media array
             imageUrl: p.media.find(m => m.image)?.image || null
@@ -60,9 +62,7 @@ export default function PropertyFeed() {
             <div className="ml-3">
               <h3 className="font-medium text-text-primary">{property.name}</h3>
               <div className="flex items-center mt-1">
-                <span className="text-success text-xs font-medium bg-success-100 px-2 py-1 rounded mr-2">
-                  {property.status}
-                </span>
+                <StatusBadge status={property.status} className="mr-2" />
                 <span className="text-sm text-text-secondary">{property.price}</span>
               </div>
             </div>

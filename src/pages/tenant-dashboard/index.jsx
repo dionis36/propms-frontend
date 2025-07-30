@@ -8,19 +8,58 @@ import SavedListings from './components/SavedListings';
 import PropertyFeed from './components/PropertyFeed';
 import ProfileQuickEdit from './components/ProfileQuickEdit';
 import { Helmet } from 'react-helmet-async';
-import { useAuth } from '../../contexts/AuthContext'; // Import auth context
+import { useAuth } from '../../contexts/AuthContext';
+import { getFavorites } from '../../services/api';
 
 const TenantDashboard = () => {
   const [loading, setLoading] = useState(true);
-  const { user, accessToken } = useAuth(); // Get user and token from auth context
+  const [savedListings, setSavedListings] = useState([]);
+  const [savedListingsLoading, setSavedListingsLoading] = useState(true);
+  const { user, accessToken } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
+  // Format backend favorites data
+  const formatFavorites = (data) =>
+    data.map((item) => ({
+      id: item.id,
+      propertyId: item.property.id,
+      title: item.property.title,
+      price: item.property.price,
+      location: item.property.location,
+      bedrooms: item.property.bedrooms,
+      bathrooms: item.property.bathrooms,
+      propertyType: item.property.property_type,
+      status: item.property.status,
+      availableFrom: item.property.available_from,
+      image: item.property.media.find(m => m.image)?.image || null,
+      savedAt: item.saved_at,
+      daysSincePosted: item.property.days_since_posted,
+      isAvailableNow: item.property.is_available_now,
+    }));
 
-    // Just simulate brief loading for UI consistency
+  // Fetch saved listings
+  const fetchSavedListings = async () => {
+    try {
+      setSavedListingsLoading(true);
+      const data = await getFavorites(accessToken);
+      const formatted = formatFavorites(data);
+      setSavedListings(formatted);
+    } catch (error) {
+      console.error("Failed to fetch favorites:", error);
+    } finally {
+      setSavedListingsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     const initializeDashboard = async () => {
       try {
         await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Fetch saved listings if user is authenticated
+        if (accessToken) {
+          await fetchSavedListings();
+        }
       } catch (error) {
         console.error('Failed to initialize dashboard:', error);
       } finally {
@@ -30,6 +69,21 @@ const TenantDashboard = () => {
 
     initializeDashboard();
   }, [accessToken, user, navigate]);
+
+  // Handler to update saved listings from child components
+  const handleSavedListingsUpdate = (updatedListings) => {
+    setSavedListings(updatedListings);
+  };
+
+  // Handler to add a new saved listing
+  const handleAddSavedListing = (newListing) => {
+    setSavedListings(prev => [newListing, ...prev]);
+  };
+
+  // Handler to remove a saved listing
+  const handleRemoveSavedListing = (propertyId) => {
+    setSavedListings(prev => prev.filter(item => item.propertyId !== propertyId));
+  };
 
   const helmet = (
     <Helmet>
@@ -174,18 +228,30 @@ const TenantDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-6">
-            {/* <div className="lg:col-span-2 space-y-6"> */}
               <WelcomeBanner 
                 name={user?.first_name}
               />
-              <DashboardOverview user={user} />
-              <SavedListings user={user} />
+              <DashboardOverview 
+                user={user} 
+                savedListings={savedListings}
+                loading={savedListingsLoading}
+              />
+              <SavedListings 
+                user={user}
+                savedListings={savedListings}
+                loading={savedListingsLoading}
+                onSavedListingsUpdate={handleSavedListingsUpdate}
+                onAddSavedListing={handleAddSavedListing}
+                onRemoveSavedListing={handleRemoveSavedListing}
+              />
             </div>
             
             {/* Right Column */}
             <div className="space-y-6 lg:sticky lg:top-6">
-            {/* <div className="space-y-6"> */}
-              <PropertyFeed user={user} />
+              <PropertyFeed 
+                user={user} 
+                onAddSavedListing={handleAddSavedListing}
+              />
               <ProfileQuickEdit user={user} />
             </div>
           </div>

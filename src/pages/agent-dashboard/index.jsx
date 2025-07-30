@@ -57,7 +57,7 @@ const AgentDashboard = () => {
   }, [accessToken]);
 
 
-  const vacantListings = listings.filter(p => p.status === 'Vacant').length;
+  const vacantListings = listings.filter(p => p.status === 'Available').length;
   const occupiedListings = listings.filter(p => p.status === 'Occupied').length;
 
 const numericPrices = listings
