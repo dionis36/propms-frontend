@@ -12,24 +12,25 @@ import SortDropdown from './components/SortDropdown';
 
 const PropertyListings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
-  const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // Items per page
   const [searchKeyword, setSearchKeyword] = useState(searchParams.get('query') || '');
   const desktopListRef = useRef();
 
-  // Calculate pagination values
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProperties = filteredProperties.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
+
+  const [properties, setProperties] = useState([]);
+  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // Backend limit
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0); // From backend
+  const currentProperties = filteredProperties; // because now it's already paged from backend
+
 
   // DEBUGGING CHECKLIST FOR PROPERTY LISTINGS NOT DISPLAYING
 
@@ -39,45 +40,29 @@ const PropertyListings = () => {
 useEffect(() => {
   const fetchProperties = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      console.log('🔍 Fetching properties from API...');
-      const data = await getAllProperties();
-      
-      // DEBUG: Log the raw API response
-      console.log('📥 Raw API Response:', data);
-      console.log('📊 Response type:', typeof data);
-      console.log('📋 Response length:', Array.isArray(data) ? data.length : 'Not an array');
-      
-      if (!data || !Array.isArray(data)) {
-        console.error('❌ API response is not an array:', data);
-        setError('Invalid data format received from server');
-        return;
+      console.log('🔄 Fetching paginated properties...');
+      const data = await getAllProperties(currentPage, itemsPerPage);
+
+      // Validate API response
+      if (!data || !Array.isArray(data.results)) {
+        throw new Error('Invalid API response format');
       }
-      
-      if (data.length === 0) {
-        console.warn('⚠️ API returned empty array');
-        setProperties([]);
-        setFilteredProperties([]);
-        return;
-      }
-      
-      // DEBUG: Log first property structure
-      console.log('🏠 First property structure:', data[0]);
-      
-      const formattedProperties = formatListings(data);
-      console.log('✅ Formatted properties:', formattedProperties);
-      console.log('📊 Formatted length:', formattedProperties.length);
-      
-      setProperties(formattedProperties);
-      applyFilters(formattedProperties);
-      setError(null);
+
+      // Format and store listings
+      const formatted = formatListings(data.results);
+      setProperties(formatted);
+      setFilteredProperties(formatted);
+
+      // Pagination
+      setTotalResults(data.count); // total records
+      setTotalPages(Math.ceil(data.count / itemsPerPage));
+
+      console.log(`✅ Loaded page ${currentPage} with ${formatted.length} properties`);
     } catch (err) {
-      console.error('💥 Error fetching properties:', err);
-      console.error('📋 Error details:', {
-        message: err.message,
-        stack: err.stack,
-        response: err.response
-      });
+      console.error('💥 Error loading properties:', err);
       setError('Failed to load properties. Please try again later.');
     } finally {
       setLoading(false);
@@ -85,9 +70,7 @@ useEffect(() => {
   };
 
   fetchProperties();
-}, []);
-
-// 2. FORMAT LISTINGS DEBUGGING
+}, [currentPage, itemsPerPage]);
 // Enhanced formatListings function with debugging:
 
 const formatListings = (apiData) => {
@@ -294,41 +277,6 @@ console.log('🎨 Rendering with state:', {
   totalPages
 });
 
-// 6. COMMON ISSUES TO CHECK:
-
-/*
-❌ POTENTIAL ISSUES:
-
-1. API Response Format:
-   - Check if API returns array or object with properties array
-   - Verify field names match (location vs address, etc.)
-
-2. Data Type Issues:
-   - Ensure price is numeric
-   - Check if media is array
-   - Verify coordinate data types
-
-3. Filter Issues:
-   - Check if default filters are too restrictive
-   - Verify search params are being read correctly
-
-4. State Issues:
-   - Properties array is empty
-   - Filters removing all properties
-   - Loading state stuck on true
-
-5. Network Issues:
-   - CORS errors
-   - Authentication required
-   - API endpoint returning errors
-
-6. Component Issues:
-   - Conditional rendering hiding content
-   - CSS hiding elements
-   - Wrong view mode selected
-*/
-
-// 7. QUICK FIXES TO TRY:
 
 // Temporary bypass filters for testing:
 const bypassFilters = () => {
@@ -370,127 +318,6 @@ const validateApiResponse = (data) => {
   console.log('✅ API response structure is valid');
   return true;
 };
-
-
-
-
-  // Format API response to match frontend structure
-  // const formatListings = (apiData) => {
-  //   return apiData.map(property => ({
-  //     id: property.id,
-  //     title: property.title,
-  //     price: parseFloat(property.price),
-  //     address: property.location,
-  //     bedrooms: property.bedrooms,
-  //     bathrooms: property.bathrooms,
-  //     sqft: 0, // Not provided in API
-  //     propertyType: property.property_type.toLowerCase(),
-  //     status: property.status,
-  //     images: property.media
-  //       .filter(media => media.image)
-  //       .map(media => media.image),
-  //     agent: {
-  //       name: property.agent_name,
-  //       phone: property.agent_phone_number,
-  //     },
-  //     coordinates: { 
-  //       lat: parseFloat(property.latitude), 
-  //       lng: parseFloat(property.longitude) 
-  //     },
-  //     isSaved: property.is_saved,
-  //     daysOnMarket: property.days_since_posted,
-  //     amenities: property.amenities && property.amenities.length > 0 
-  //       ? JSON.parse(property.amenities[0]) 
-  //       : [],
-  //     description: property.description
-  //   }));
-  // };
-
-  // Fetch properties from API
-  // useEffect(() => {
-  //   const fetchProperties = async () => {
-  //     setLoading(true);
-  //     try {
-  //       const data = await getAllProperties();
-  //       const formattedProperties = formatListings(data);
-  //       setProperties(formattedProperties);
-  //       applyFilters(formattedProperties);
-  //       setError(null);
-  //     } catch (err) {
-  //       setError('Failed to load properties. Please try again later.');
-  //       console.error('Error fetching properties:', err);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   fetchProperties();
-  // }, []);
-
-  // Apply filters based on search params
-  // const applyFilters = (propertiesToFilter = properties) => {
-  //   let filtered = [...propertiesToFilter];
-    
-  //   const query = searchParams.get('query') || '';
-  //   const location = searchParams.get('location');
-  //   const propertyType = searchParams.get('propertyType');
-  //   const minPrice = searchParams.get('minPrice');
-  //   const maxPrice = searchParams.get('maxPrice');
-  //   const bedrooms = searchParams.get('bedrooms');
-  //   const bathrooms = searchParams.get('bathrooms');
-
-  //   if (query) {
-  //     filtered = filtered.filter(property =>
-  //       property.title.toLowerCase().includes(query.toLowerCase()) ||
-  //       property.address.toLowerCase().includes(query.toLowerCase()) ||
-  //       property.description.toLowerCase().includes(query.toLowerCase())
-  //     );
-  //   }
-
-  //   if (location) {
-  //     filtered = filtered.filter(property =>
-  //       property.address.toLowerCase().includes(location.toLowerCase())
-  //     );
-  //   }
-
-  //   if (propertyType && propertyType !== 'all') {
-  //     filtered = filtered.filter(property =>
-  //       property.propertyType === propertyType
-  //     );
-  //   }
-
-  //   if (minPrice) {
-  //     const minPriceNum = parseFloat(minPrice);
-  //     filtered = filtered.filter(property =>
-  //       property.price >= minPriceNum
-  //     );
-  //   }
-
-  //   if (maxPrice) {
-  //     const maxPriceNum = parseFloat(maxPrice);
-  //     filtered = filtered.filter(property =>
-  //       property.price <= maxPriceNum
-  //     );
-  //   }
-
-  //   if (bedrooms) {
-  //     filtered = filtered.filter(property =>
-  //       property.bedrooms >= parseInt(bedrooms)
-  //     );
-  //   }
-
-  //   if (bathrooms) {
-  //     filtered = filtered.filter(property =>
-  //       property.bathrooms >= parseInt(bathrooms)
-  //     );
-  //   }
-
-  //   // Apply sorting
-  //   filtered = sortProperties(filtered, sortBy);
-    
-  //   setFilteredProperties(filtered);
-  //   setCurrentPage(1); // Reset to first page when filters change
-  // };
 
   // Sort properties
   const sortProperties = (propertiesToSort, sortOption) => {
@@ -621,10 +448,17 @@ const validateApiResponse = (data) => {
                 <h1 className="text-2xl font-bold text-text-primary">
                   Properties for Sale
                 </h1>
-                <p className="text-text-secondary mt-1">
+                {/* <p className="text-text-secondary mt-1">
                   {loading ? 'Loading...' : 
                     `Showing ${Math.min(indexOfFirstItem + 1, filteredProperties.length)}-${Math.min(indexOfLastItem, filteredProperties.length)} of ${filteredProperties.length} properties`}
-                </p>
+                </p> */}
+                <p className="text-text-secondary mt-1">
+  {loading ? 'Loading...' : 
+    `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${
+      Math.min(currentPage * itemsPerPage, totalResults)
+    } of ${totalResults} properties`}
+</p>
+
               </div>
 
               {/* Mobile Controls */}

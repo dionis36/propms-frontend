@@ -286,7 +286,7 @@ export default function SavedListings({
                         </div>
 
                         <p className="text-text-secondary text-sm mb-2 truncate overflow-hidden" title={property.location}>
-                          📍 {property.location}
+                          {property.location}
                         </p>
 
                         {/* Property Features - matching PropertyCard theme */}
