@@ -1,28 +1,71 @@
+// File: Toast.jsx
+
 import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  CheckCircle,
+  XCircle,
+  Info,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
 
-const Toast = ({ message, type = 'success', onClose }) => {
+const typeStyles = {
+  success: {
+    bg: 'bg-green-500',
+    Icon: CheckCircle,
+  },
+  error: {
+    bg: 'bg-red-500',
+    Icon: XCircle,
+  },
+  info: {
+    bg: 'bg-blue-500',
+    Icon: Info,
+  },
+  warning: {
+    bg: 'bg-yellow-500',
+    Icon: AlertTriangle,
+  },
+};
+
+const Toast = ({
+  message,
+  type = 'info',
+  onClose,
+  duration = 4000,
+  persist = false,
+}) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000); // Auto close after 4s
-    return () => clearTimeout(timer);
-  }, [onClose]);
+    if (!persist) {
+      const timer = setTimeout(onClose, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [onClose, duration, persist]);
 
-  const base = "fixed bottom-4 right-4 z-50 px-4 py-3 rounded-md shadow-elevation-3 text-sm font-medium flex items-center gap-2 toast-slide-in";
-  const typeStyles = {
-    success: "bg-success text-white",
-    error: "bg-error text-white",
-    info: "bg-primary text-white",
-    warning: "bg-warning text-white",
-  };
+  const { bg, Icon } = typeStyles[type] || typeStyles.info;
 
   return (
-    <div className={`${base} ${typeStyles[type] || typeStyles.info}`}>
-      {type === 'success' && '✅'}
-      {type === 'error' && '❌'}
-      {type === 'info' && 'ℹ️'}
-      {type === 'warning' && '⚠️'}
-      <span>{message}</span>
-    </div>
+    <AnimatePresence>
+      <motion.div
+        className={`w-[350px] pointer-events-auto flex items-center justify-between gap-2 px-4 py-3 rounded-md shadow-lg text-white ${bg}`}
+        role="alert"
+        aria-live="polite"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex items-center gap-2">
+          <Icon size={20} />
+          <span>{message}</span>
+        </div>
+        <button onClick={onClose} aria-label="Close" className="ml-2">
+          <X size={16} />
+        </button>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
@@ -30,6 +73,8 @@ Toast.propTypes = {
   message: PropTypes.string.isRequired,
   type: PropTypes.oneOf(['success', 'error', 'info', 'warning']),
   onClose: PropTypes.func.isRequired,
+  duration: PropTypes.number,
+  persist: PropTypes.bool,
 };
 
 export default Toast;

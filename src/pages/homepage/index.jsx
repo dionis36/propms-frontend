@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import Header from '../../components/ui/Header';
+import Footer from '../../components/ui/Footer';
 import { Helmet } from 'react-helmet-async';
 
 
@@ -9,7 +10,7 @@ import HeroSection from './components/HeroSection';
 import FeaturedProperties from './components/FeaturedProperties';
 import QuickStats from './components/QuickStats';
 import AgentSpotlight from './components/AgentSpotlight';
-import Footer from './components/Footer';
+import FAQ from './components/FAQ';
 
 const Homepage = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -104,8 +105,9 @@ const homepageHelmet = (
 
         <div className="pt-16 lg:pt-18">
           <FeaturedProperties />
-          <QuickStats />
           <AgentSpotlight />
+          <QuickStats />
+          <FAQ /> {/* Add the FAQ section here */}
         </div>
       </main>
 

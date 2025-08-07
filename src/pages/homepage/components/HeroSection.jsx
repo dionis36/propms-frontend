@@ -128,16 +128,16 @@ const HeroSection = ({ onSearch }) => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 h-full flex flex-col justify-center items-center px-4 pt-16 pb-24">
+      <div className="relative z-10 h-full flex flex-col justify-center items-center px-4 pt-32 pb-24">
         <div className="max-w-7xl mx-auto w-full flex flex-col items-center">
           <div className={`text-center text-white mb-6 sm:mb-8 lg:mb-12 transition-all duration-700 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-3 sm:mb-4 lg:mb-6 font-heading tracking-tight leading-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 lg:mb-6 font-heading tracking-tight leading-tight">
               Discover Quality <span className="text-primary relative">
                 Rentals
                 <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary/50 animate-pulse hidden sm:block"></div>
               </span>
             </h1>
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto text-white/95 leading-relaxed">
+            <p className="text-lg text-white/95 max-w-2xl mx-auto leading-relaxed">
               Finding a room, apartment, or house in Dar es Salaam just got easier.
               Your ideal home is just a search away.
             </p>

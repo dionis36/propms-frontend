@@ -60,7 +60,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="bg-secondary-700 text-white py-12">
+    <footer className="bg-gradient-to-br from-gray-800 via-slate-800 to-gray-900 text-white pt-24 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex justify-center mb-8">
@@ -70,7 +70,7 @@ const Footer = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
               </svg>
             </div>
-            <span className="text-2xl font-bold font-heading tracking-tight">EstateHub</span>
+            <span className="text-3xl md:text-4xl lg:text-5xl font-bold font-heading tracking-tight">EstateHub</span>
           </div>
         </div>
 
@@ -81,7 +81,7 @@ const Footer = () => {
               <Link
                 key={link.label}
                 to={link.path}
-                className="text-secondary-200 hover:text-white transition-colors duration-200 text-base px-1 py-1"
+                className="text-gray-300 hover:text-white transition-colors duration-200 text-lg px-1 py-1 font-medium"
               >
                 {link.label}
               </Link>
@@ -96,10 +96,10 @@ const Footer = () => {
               <a
                 key={social.name}
                 href={social.url}
-                className="text-secondary-300 hover:text-white transition-colors duration-300"
+                className="text-gray-400 hover:text-white transition-colors duration-300"
                 aria-label={social.name}
               >
-                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-secondary-600 hover:bg-primary transition-all duration-200">
+                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-700/50 backdrop-blur-sm hover:bg-primary transition-all duration-200 border border-gray-600/30">
                   <SocialIcon icon={social.icon} />
                 </div>
               </a>
@@ -108,11 +108,11 @@ const Footer = () => {
         </div>
 
         {/* Copyright Section */}
-        <div className="pt-8 pb-4 border-t border-secondary-600 text-center">
-          <div className="text-secondary-300 text-sm">
+        <div className="pt-6 pb-4 border-t border-gray-600/50 text-center"> {/* Reduced top padding here */}
+          <div className="text-gray-300 text-sm">
             © {currentYear} EstateHub, Inc. All rights reserved.
           </div>
-          <div className="mt-2 text-secondary-400 text-xs">
+          <div className="mt-2 text-gray-400 text-xs">
             <Link to="/privacy" className="hover:text-white transition-colors duration-200">Privacy Policy</Link> • 
             <Link to="/terms" className="hover:text-white transition-colors duration-200 ml-2">Terms of Service</Link> • 
             <Link to="/cookies" className="hover:text-white transition-colors duration-200 ml-2">Cookie Policy</Link>

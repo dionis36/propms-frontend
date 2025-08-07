@@ -1,29 +1,65 @@
+// ✅ UPGRADED TOAST SYSTEM
+// File: ToastContext.jsx
+
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import Toast from '../components/ui/Toast';
 
 const ToastContext = createContext();
 
 export const ToastProvider = ({ children }) => {
-  const [toast, setToast] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
-  const showToast = useCallback((message, type = 'success') => {
-    setToast({ message, type });
+  const showToast = useCallback((message, type = 'info', config = {}) => {
+    const id = Date.now() + Math.random();
+    const toastConfig = {
+      id,
+      message,
+      type,
+      duration: config.duration ?? 4000,
+      persist: config.persist ?? false,
+      position: config.position ?? 'bottom-right',
+    };
+
+    setToasts(prev => [...prev, toastConfig]);
+
+    if (!toastConfig.persist) {
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, toastConfig.duration);
+    }
   }, []);
 
-  const hideToast = () => {
-    setToast(null);
+  const removeToast = id => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={hideToast}
-        />
-      )}
+      <div className="fixed inset-0 pointer-events-none z-50">
+        {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map(pos => (
+          <div
+            key={pos}
+            className={`absolute ${{
+              'top-left': 'top-4 left-4',
+              'top-right': 'top-4 right-4',
+              'bottom-left': 'bottom-4 left-4',
+              'bottom-right': 'bottom-4 right-4',
+            }[pos]} space-y-2`}
+          >
+            {toasts.filter(t => t.position === pos).map(toast => (
+              <Toast
+                key={toast.id}
+                message={toast.message}
+                type={toast.type}
+                duration={toast.duration}
+                persist={toast.persist}
+                onClose={() => removeToast(toast.id)}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </ToastContext.Provider>
   );
 };

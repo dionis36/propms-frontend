@@ -16,33 +16,37 @@ const QuickStats = () => {
       key: 'properties',
       label: 'Active Properties',
       value: 15420,
-      icon: 'Building',
+      icon: 'Home',
       suffix: '+',
-      color: 'text-primary'
+      color: 'text-primary',
+      bgColor: 'bg-primary-100/40' // Increased opacity for prominence
     },
     {
       key: 'cities',
       label: 'Cities Covered',
       value: 250,
-      icon: 'MapPin',
+      icon: 'Map',
       suffix: '+',
-      color: 'text-accent'
+      color: 'text-accent',
+      bgColor: 'bg-accent-100/40' // Increased opacity for prominence
     },
     {
       key: 'transactions',
       label: 'Successful Sales',
       value: 8750,
-      icon: 'TrendingUp',
+      icon: 'Handshake',
       suffix: '+',
-      color: 'text-success'
+      color: 'text-success',
+      bgColor: 'bg-success-100/40' // Increased opacity for prominence
     },
     {
       key: 'agents',
       label: 'Expert Agents',
       value: 1200,
-      icon: 'Users',
+      icon: 'UserCheck',
       suffix: '+',
-      color: 'text-warning'
+      color: 'text-warning',
+      bgColor: 'bg-warning-100/40' // Increased opacity for prominence
     }
   ];
 
@@ -94,10 +98,13 @@ const QuickStats = () => {
   };
 
   return (
-    <section ref={sectionRef} className="py-16 lg:py-24 bg-primary-50">
+    <section
+      ref={sectionRef}
+      className="py-16 lg:py-24 bg-background from-primary-50 to-blue-50"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-12 lg:mb-16">
+        <div className="text-center mb-16 lg:mb-20">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-text-primary mb-4 font-heading">
             Trusted by Thousands
           </h2>
@@ -106,75 +113,58 @@ const QuickStats = () => {
           </p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-          {stats.map((stat) => (
-            <div
-              key={stat.key}
-              className="text-center p-6 lg:p-8 bg-surface rounded-lg shadow-elevation-1
-                       hover:shadow-elevation-2 transition-all duration-300 ease-out micro-interaction"
-            >
-              {/* Icon */}
-              <div className={`w-16 h-16 mx-auto mb-4 rounded-full bg-opacity-10 flex items-center justify-center
-                             ${stat.color === 'text-primary' ? 'bg-primary' :
-                               stat.color === 'text-accent' ? 'bg-accent' :
-                               stat.color === 'text-success'? 'bg-success' : 'bg-warning'}`}>
-                <Icon 
-                  name={stat.icon} 
-                  size={32} 
-                  className={stat.color}
-                />
+        {/* Stats - Modern horizontal bar with icons and numbers */}
+<div className="grid grid-cols-2 gap-6 lg:flex lg:flex-row justify-center items-center lg:gap-0 bg-white/80 backdrop-blur-sm rounded-2xl shadow-elevation-1 px-4 py-8 lg:py-12 mb-12 transition-all duration-300 ease-out hover:shadow-elevation-1-5">
+          {stats.map((stat, idx) => (
+            <React.Fragment key={stat.key}>
+              <div className="flex flex-col items-center flex-1 min-w-[120px]">
+                <div className={`w-16 h-16 mb-4 rounded-full ${stat.bgColor} flex items-center justify-center`}>
+                  <Icon name={stat.icon} size={32} className={`${stat.color} drop-shadow-md`} />
+                </div>
+                <div className="flex items-end mb-1">
+                  <span className="text-3xl lg:text-4xl font-bold text-text-primary tracking-tight">
+                    {formatNumber(animatedValues[stat.key])}
+                  </span>
+                  <span className={`text-xl lg:text-2xl font-bold ${stat.color} ml-1`}>
+                    {stat.suffix}
+                  </span>
+                </div>
+                <span className="text-sm text-text-secondary font-medium">{stat.label}</span>
               </div>
-
-              {/* Animated Number */}
-              <div className="mb-2">
-                <span className="text-3xl lg:text-4xl font-bold text-text-primary font-data">
-                  {formatNumber(animatedValues[stat.key])}
-                </span>
-                <span className={`text-2xl lg:text-3xl font-bold ${stat.color}`}>
-                  {stat.suffix}
-                </span>
-              </div>
-
-              {/* Label */}
-              <p className="text-text-secondary font-medium">
-                {stat.label}
-              </p>
-            </div>
+              {idx < stats.length - 1 && (
+                <div className="hidden lg:block h-16 border-l border-gray-200 mx-8" />
+              )}
+            </React.Fragment>
           ))}
         </div>
 
-        {/* Additional Info */}
-        <div className="mt-12 lg:mt-16 text-center">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="flex items-center justify-center space-x-3">
-              <div className="w-12 h-12 bg-success-100 rounded-full flex items-center justify-center">
-                <Icon name="Shield" size={24} className="text-success" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-text-primary">Verified Listings</p>
-                <p className="text-sm text-text-secondary">All properties verified</p>
-              </div>
+        {/* Feature Highlights - horizontal, icon + text, no cards */}
+        <div className="flex flex-col md:flex-row justify-center items-center gap-8">
+          <div className="flex items-center gap-4">
+            <span className="w-12 h-12 bg-success-100/30 rounded-full flex items-center justify-center">
+              <Icon name="ShieldCheck" size={24} className="text-success" />
+            </span>
+            <div>
+              <p className="font-semibold text-text-primary">Verified Listings</p>
+              <p className="text-sm text-text-secondary">All properties verified</p>
             </div>
-
-            <div className="flex items-center justify-center space-x-3">
-              <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                <Icon name="Clock" size={24} className="text-primary" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-text-primary">24/7 Support</p>
-                <p className="text-sm text-text-secondary">Always here to help</p>
-              </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="w-12 h-12 bg-primary-100/30 rounded-full flex items-center justify-center">
+              <Icon name="Clock" size={24} className="text-primary" />
+            </span>
+            <div>
+              <p className="font-semibold text-text-primary">24/7 Support</p>
+              <p className="text-sm text-text-secondary">Always here to help</p>
             </div>
-
-            <div className="flex items-center justify-center space-x-3">
-              <div className="w-12 h-12 bg-accent-100 rounded-full flex items-center justify-center">
-                <Icon name="Award" size={24} className="text-accent" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-text-primary">Award Winning</p>
-                <p className="text-sm text-text-secondary">Industry recognized</p>
-              </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="w-12 h-12 bg-accent-100/30 rounded-full flex items-center justify-center">
+              <Icon name="Trophy" size={24} className="text-accent" />
+            </span>
+            <div>
+              <p className="font-semibold text-text-primary">Award Winning</p>
+              <p className="text-sm text-text-secondary">Industry recognized</p>
             </div>
           </div>
         </div>
