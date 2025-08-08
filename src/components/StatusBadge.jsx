@@ -10,7 +10,6 @@ const StatusBadge = ({ status, className = '' }) => {
     ADMIN: { label: 'Admin', bg: 'bg-secondary-300', text: 'text-secondary-900' },
     BROKER: { label: 'Broker', bg: 'bg-accent-100', text: 'text-accent' },
     TENANT: { label: 'Tenant', bg: 'bg-primary-100', text: 'text-primary' },
-    // ADMIN: { label: 'Admin', bg: 'bg-secondary-100', text: 'text-secondary-700' },
   };
 
   const badgeConfig = badgeMap[status] || {

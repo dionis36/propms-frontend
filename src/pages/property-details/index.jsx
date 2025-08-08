@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import Icon from '../../components/AppIcon';
 import UserAvatar from '../../components/ui/UserAvatar';
 import { Helmet } from 'react-helmet-async';
-import { getPropertyDetails, saveFavorite, removeFavorite  } from '../../services/api';
+import { saveFavorite, removeFavorite  } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { usePropertyDetails } from '../../hooks/usePropertyDetails';
 
 // Import components
 import ImageGallery from './components/ImageGallery';
@@ -19,9 +20,6 @@ import LoadingState from './components/LoadingState';
 
 const PropertyDetails = () => {
   const [searchParams] = useSearchParams();
-  const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [showContactForm, setShowContactForm] = useState(false);
@@ -30,7 +28,9 @@ const PropertyDetails = () => {
   const { accessToken, user } = useAuth();
   
   const propertyId = searchParams.get('id');
-  const requestIdRef = useRef(0); // Track latest request ID
+  
+  // Use the custom hook instead of manual useEffect
+  const { data: property, isLoading: loading, error } = usePropertyDetails(propertyId, accessToken);
 
   // Helper function for copying to clipboard
   const copyToClipboard = (text, id) => {
@@ -82,69 +82,12 @@ const PropertyDetails = () => {
     }
   ];
 
-  useEffect(() => {
-    const requestId = ++requestIdRef.current; // Generate unique request ID
-    
-    const fetchProperty = async () => {
-      if (!propertyId) {
-        setError('No property ID provided');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getPropertyDetails(propertyId);
-        
-        // Only process response if it's the latest request
-        if (requestId === requestIdRef.current) {
-          // Process media array
-          const images = data.media
-            .filter(media => media.image)
-            .map(media => media.image);
-          
-          const videos = data.media
-            .filter(media => media.video)
-            .map(media => media.video);
-          
-          // Map API response to component structure
-          const mappedProperty = {
-            ...data,
-            daysOnMarket: data.days_since_posted,
-            agent_name: data.agent_name,
-            agent_email: data.agent_email,
-            agent_phone_number: data.agent_phone_number,
-            agent_whatsapp_number: data.agent_whatsapp_number,
-            
-            agent: {
-              name: data.agent_name,
-              first_name: data.agent_name ? data.agent_name.split(' ')[0] : '',
-              last_name: data.agent_name ? data.agent_name.split(' ').slice(1).join(' ') : '',
-              email: data.agent_email,
-              phone: data.agent_phone_number
-            },
-            images,
-            videos,
-          };
-          
-          setProperty(mappedProperty);
-          setIsSaved(data.is_saved);
-        }
-      } catch (error) {
-        if (requestId === requestIdRef.current) {
-          console.error('Error fetching property details:', error);
-          setError(error.message || 'Failed to load property details');
-        }
-      } finally {
-        if (requestId === requestIdRef.current) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchProperty();
-  }, [propertyId]);
+  // Set isSaved state when property data is loaded
+  React.useEffect(() => {
+    if (property) {
+      setIsSaved(property.is_saved);
+    }
+  }, [property]);
 
   
 const handleSave = async (e) => {
@@ -232,12 +175,12 @@ const handleSave = async (e) => {
             <div className="text-center">
               <Icon name="Home" size={64} className="text-secondary mx-auto mb-4" />
               <h1 className="text-2xl font-bold text-text-primary mb-2">
-                {error === 'Property not found' ? 'Property Not Found' : 'Error Loading Property'}
+                {error?.message === 'Property not found' ? 'Property Not Found' : 'Error Loading Property'}
               </h1>
               <p className="text-text-secondary mb-6">
-                {error === 'Property not found' 
+                {error?.message === 'Property not found' 
                   ? "The property you're looking for doesn't exist or has been removed."
-                  : error || "There was an error loading the property details. Please try again."
+                  : error?.message || "There was an error loading the property details. Please try again."
                 }
               </p>
               <div className="space-x-4">
@@ -248,7 +191,7 @@ const handleSave = async (e) => {
                   <Icon name="ArrowLeft" size={16} />
                   <span>Back to Properties</span>
                 </Link>
-                {error && error !== 'Property not found' && (
+                {error && error?.message !== 'Property not found' && (
                   <button
                     onClick={() => window.location.reload()}
                     className="inline-flex items-center space-x-2 bg-secondary text-text-primary px-6 py-3 rounded-md hover:bg-secondary-200 transition-all duration-200"

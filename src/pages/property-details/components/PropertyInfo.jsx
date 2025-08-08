@@ -60,60 +60,6 @@ const PropertyInfo = ({ property }) => {
     </div>
   );
 
-  // const renderAmenities = () => {
-  //   // Safely get the raw amenities string from the array
-  //   const rawAmenitiesString = property?.amenities?.[0];
-
-  //   let parsedAmenities = [];
-  //   if (rawAmenitiesString && typeof rawAmenitiesString === 'string') {
-  //     try {
-  //       // Attempt to parse the JSON string into an array
-  //       parsedAmenities = JSON.parse(rawAmenitiesString);
-  //       // Ensure the parsed result is actually an array
-  //       if (!Array.isArray(parsedAmenities)) {
-  //         console.warn('Parsed amenities is not an array:', parsedAmenities);
-  //         parsedAmenities = []; // Reset if parsing resulted in non-array
-  //       }
-  //     } catch (error) {
-  //       console.error('Error parsing amenities string:', error);
-  //       parsedAmenities = []; // Fallback to empty array on parsing error
-  //     }
-  //   }
-
-  //   return (
-  //     <div className="card overflow-hidden">
-  //       {/* Card Heading */}
-  //       <div className="p-6">
-  //         <h4 className="text-lg font-semibold text-text-primary mb-6 flex items-center">
-  //           <Icon name="Star" size={20} className="mr-2 text-primary" />
-  //           Amenities
-  //         </h4>
-          
-  //         {/* Only render the grid if there are parsed amenities */}
-  //         {parsedAmenities.length > 0 ? (
-  //           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-  //             {parsedAmenities.map((amenity, index) => (
-  //               <div key={index} className="flex items-center space-x-3 p-2 bg-secondary-50 rounded-lg">
-  //                 <Icon name="Check" size={16} className="text-success flex-shrink-0" />
-  //                 {/* Capitalize the first letter of the amenity */}
-  //                 <span className="text-text-primary text-sm">
-  //                   {amenity.charAt(0).toUpperCase() + amenity.slice(1)}
-  //                 </span>
-  //               </div>
-  //             ))}
-  //           </div>
-  //         ) : (
-  //           // Display "No amenities listed" message if no parsed amenities
-  //           <div className="text-center py-8">
-  //             <Icon name="Star" size={48} className="text-secondary mx-auto mb-4" />
-  //             <p className="text-text-secondary">No amenities listed for this property</p>
-  //           </div>
-  //         )}
-  //       </div>
-  //     </div>
-  //   );
-  // };
-
   const renderAmenities = () => {
   let parsedAmenities = [];
 
@@ -233,7 +179,7 @@ const renderInteractiveMap = () => {
       {/* Get Directions Button */}
       <button
         onClick={handleGetDirections}
-        className="absolute bottom-4 left-4 bg-primary text-white px-3 py-2 rounded-lg shadow-lg hover:bg-primary-600 transition-colors duration-200 flex items-center space-x-2 text-sm font-medium z-30"
+        className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/50 hover:bg-black/70 text-white px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 backdrop-blur-sm z-30"
       >
         <Icon name="Navigation" size={16} />
         <span className="hidden sm:inline">Get Directions</span>
