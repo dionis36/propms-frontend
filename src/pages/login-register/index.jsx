@@ -1,9 +1,11 @@
+// src/pages/login-register/LoginRegister.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import Icon from 'components/AppIcon';
 import AuthForm from './components/AuthForm';
 import ForgotPassword from './components/ForgotPassword';
+import SimpleFooter from '../../components/ui/SimpleFooter'; // Import the new minimalist footer
 
 const LoginRegister = () => {
   const location = useLocation();
@@ -135,27 +137,17 @@ const LoginRegister = () => {
                   mode={activeTab}
                   onForgotPassword={() => setShowForgotPassword(true)}
                 />
-
-                {/* Footer Links */}
-                <div className="mt-8 text-center">
-                  <p className="text-sm text-text-secondary">
-                    By continuing, you agree to our{' '}
-                    <Link to="/terms" className="text-primary hover:underline">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </p>
-                </div>
               </>
             )}
           </div>
         </main>
+        
+        {/* Footer component for the login/register page */}
+        <SimpleFooter />
       </div>
     </>
   );
 };
 
 export default LoginRegister;
+

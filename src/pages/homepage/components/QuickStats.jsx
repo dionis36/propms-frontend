@@ -114,7 +114,7 @@ const QuickStats = () => {
         </div>
 
         {/* Stats - Modern horizontal bar with icons and numbers */}
-<div className="grid grid-cols-2 gap-6 lg:flex lg:flex-row justify-center items-center lg:gap-0 bg-white/80 backdrop-blur-sm rounded-2xl shadow-elevation-1 px-4 py-8 lg:py-12 mb-12 transition-all duration-300 ease-out hover:shadow-elevation-1-5">
+        <div className="grid grid-cols-2 gap-6 lg:flex lg:flex-row justify-center items-center lg:gap-0 bg-white/80 backdrop-blur-sm rounded-2xl shadow-elevation-1 px-4 py-8 lg:py-12 mb-12 transition-all duration-300 ease-out hover:shadow-elevation-1-5">
           {stats.map((stat, idx) => (
             <React.Fragment key={stat.key}>
               <div className="flex flex-col items-center flex-1 min-w-[120px]">

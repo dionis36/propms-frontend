@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import Header from '../../components/ui/Header';
+import Footer from '../../components/ui/Footer';
 import Icon from '../../components/AppIcon';
 import { Helmet } from 'react-helmet-async';
 import { getAllProperties } from '../../services/api';
@@ -453,11 +454,11 @@ const validateApiResponse = (data) => {
                     `Showing ${Math.min(indexOfFirstItem + 1, filteredProperties.length)}-${Math.min(indexOfLastItem, filteredProperties.length)} of ${filteredProperties.length} properties`}
                 </p> */}
                 <p className="text-text-secondary mt-1">
-  {loading ? 'Loading...' : 
-    `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${
-      Math.min(currentPage * itemsPerPage, totalResults)
-    } of ${totalResults} properties`}
-</p>
+                  {loading ? 'Loading...' : 
+                    `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${
+                      Math.min(currentPage * itemsPerPage, totalResults)
+                    } of ${totalResults} properties`}
+                </p>
 
               </div>
 
@@ -892,6 +893,7 @@ const validateApiResponse = (data) => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
     </>
   );

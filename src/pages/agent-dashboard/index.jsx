@@ -4,7 +4,7 @@ import Header from '../../components/ui/Header';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { getMyProperties } from '../../services/api'; // Adjust path to match your structure
-import { useAuth } from '../../contexts/AuthContext'; // If you’re using auth context
+import { useAuth } from '../../contexts/AuthContext'; // If you're using auth context
 
 import WelcomeBanner from './components/WelcomeBanner';
 import QuickActions from './components/QuickActions';
@@ -18,11 +18,14 @@ const AgentDashboard = () => {
   const navigate = useNavigate();
 
   // 🔹 Format backend listings into what your UI expects
-  const formatListings = (data) =>
-    data.map((item) => ({
+  const formatListings = (data) => {
+    // Handle both paginated and direct array responses
+    const results = data.results || data;
+    
+    return results.map((item) => ({
       id: item.id,
       title: item.title,
-      price: item.price,
+      price: parseFloat(item.price), // Convert string to number for proper sorting/calculations
       status: item.status === 'AVAILABLE' ? 'Available' : 'Occupied',
       type: item.property_type?.charAt(0).toUpperCase() + item.property_type?.slice(1).toLowerCase(),
       bedrooms: item.bedrooms || 0,
@@ -30,15 +33,27 @@ const AgentDashboard = () => {
       createdAt: item.created_at,
       availableFrom: item.available_from,
       description: item.description,
-      image: item.media.find(m => m.image)?.image || null,
-      video: item.media.find(m => m.video)?.video || null,
+      // Get the first image from media array
+      image: item.media?.find(m => m.image)?.image || null,
+      // Get the first video from media array  
+      video: item.media?.find(m => m.video)?.video || null,
+      // Get all media for potential future use
+      allMedia: item.media || [],
       isSaved: item.is_saved,
       location: item.location,
+      locationNotes: item.location_notes,
+      latitude: item.latitude ? parseFloat(item.latitude) : null,
+      longitude: item.longitude ? parseFloat(item.longitude) : null,
+      amenities: item.amenities || [],
       agentName: item.agent_name,
       agentPhone: item.agent_phone_number,
       agentWhatsapp: item.agent_whatsapp_number,
       agentEmail: item.agent_email,
+      daysSincePosted: item.days_since_posted,
+      isAvailableNow: item.is_available_now,
+      createdBy: item.created_by
     }));
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,29 +71,25 @@ const AgentDashboard = () => {
     fetchData();
   }, [accessToken]);
 
-
   const vacantListings = listings.filter(p => p.status === 'Available').length;
   const occupiedListings = listings.filter(p => p.status === 'Occupied').length;
 
-const numericPrices = listings
-  .map(p => typeof p.price === 'string' ? parseFloat(p.price.replace(/,/g, '')) : p.price)
-  .filter(price => !isNaN(price));
+  // Calculate average price properly from numeric values
+  const numericPrices = listings
+    .map(p => p.price)
+    .filter(price => !isNaN(price) && price > 0);
 
-const avg = numericPrices.length > 0
-  ? Math.round(numericPrices.reduce((sum, val) => sum + val, 0) / numericPrices.length)
-  : 0;
+  const avg = numericPrices.length > 0
+    ? Math.round(numericPrices.reduce((sum, val) => sum + val, 0) / numericPrices.length)
+    : 0;
 
-
-const metrics = {
-  totalListings: listings.length,
-  vacantListings,
-  occupiedListings,
-  avgPrice: `TZS ${avg.toLocaleString()}`,
-  avg: avg // 👈 Add raw number for later use in `change`
-};
-
-
-
+  const metrics = {
+    totalListings: listings.length,
+    vacantListings,
+    occupiedListings,
+    avgPrice: `TZS ${avg.toLocaleString()}`,
+    avg: avg // Raw number for calculations
+  };
 
   const helmet = (
     <Helmet>

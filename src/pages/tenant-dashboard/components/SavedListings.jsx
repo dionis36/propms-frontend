@@ -8,6 +8,7 @@ import { useToast } from '../../../contexts/ToastContext';
 import { createPortal } from 'react-dom';
 import StatusBadge from '../../../components/StatusBadge';
 
+
 export default function SavedListings({ 
   user, 
   savedListings, 

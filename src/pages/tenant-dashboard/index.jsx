@@ -11,6 +11,7 @@ import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../../contexts/AuthContext';
 import { getFavorites } from '../../services/api';
 
+
 const TenantDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [savedListings, setSavedListings] = useState([]);

@@ -1,25 +1,28 @@
 // pages/tenant-dashboard/components/PropertyFeed.jsx
 import { useEffect, useState } from 'react';
 import { getAllProperties } from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import StatusBadge from '../../../components/StatusBadge';
 
 
 export default function PropertyFeed() {
   const [properties, setProperties] = useState([]);
-  const { accessToken } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getAllProperties(accessToken);
-        const filtered = data
+        // Call getAllProperties with default pagination (page=1, limit=10)
+        const data = await getAllProperties(1, 10);
+        
+        // Handle the paginated response - data.results contains the properties array
+        const propertiesArray = data.results || [];
+        
+        const filtered = propertiesArray
           .filter(p => p.status === 'AVAILABLE')
           .slice(0, 5)
           .map(p => ({
             id: p.id,
             name: p.title,
-            status: 'AVAILABLE',
+            status: p.status,
             price: `TZS ${parseInt(p.price).toLocaleString()}`,
             // Get first valid image URL from media array
             imageUrl: p.media.find(m => m.image)?.image || null
@@ -28,11 +31,17 @@ export default function PropertyFeed() {
         setProperties(filtered);
       } catch (error) {
         console.error('Failed to load property feed:', error);
+        // Handle specific error cases
+        if (error.response?.status === 404) {
+          console.error('Properties endpoint not found');
+        } else if (error.response?.status === 401) {
+          console.error('Unauthorized - token may be invalid');
+        }
       }
     };
 
     fetchData();
-  }, [accessToken]);
+  }, []);
 
   return (
     <div className="card p-6">
