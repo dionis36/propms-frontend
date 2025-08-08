@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import Header from '../../components/ui/Header';
+import Footer from '../../components/ui/Footer';
 import Icon from '../../components/AppIcon';
 import { Helmet } from 'react-helmet-async';
 import { getAllProperties } from '../../services/api';
@@ -12,81 +13,119 @@ import SortDropdown from './components/SortDropdown';
 
 const PropertyListings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
-  const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // Items per page
   const [searchKeyword, setSearchKeyword] = useState(searchParams.get('query') || '');
   const desktopListRef = useRef();
+  const prevParams = useRef({}); // Track previous parameters
 
-  // Calculate pagination values
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProperties = filteredProperties.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
+  const [properties, setProperties] = useState([]);
+  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Format API response to match frontend structure
-  const formatListings = (apiData) => {
-    return apiData.map(property => ({
-      id: property.id,
-      title: property.title,
-      price: parseFloat(property.price),
-      address: property.location,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      sqft: 0, // Not provided in API
-      propertyType: property.property_type.toLowerCase(),
-      status: property.status,
-      images: property.media
-        .filter(media => media.image)
-        .map(media => media.image),
-      agent: {
-        name: property.agent_name,
-        phone: property.agent_phone_number,
-      },
-      coordinates: { 
-        lat: parseFloat(property.latitude), 
-        lng: parseFloat(property.longitude) 
-      },
-      isSaved: property.is_saved,
-      daysOnMarket: property.days_since_posted,
-      amenities: property.amenities && property.amenities.length > 0 
-        ? JSON.parse(property.amenities[0]) 
-        : [],
-      description: property.description
-    }));
-  };
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // Backend limit
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0); // From backend
+  const currentProperties = filteredProperties; // because now it's already paged from backend
 
-  // Fetch properties from API
-  useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true);
-      try {
-        const data = await getAllProperties();
-        const formattedProperties = formatListings(data);
-        setProperties(formattedProperties);
-        applyFilters(formattedProperties);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load properties. Please try again later.');
-        console.error('Error fetching properties:', err);
-      } finally {
-        setLoading(false);
+  // Use a ref to track if it's the initial mount
+  const isInitialMount = useRef(true);
+
+  // Enhanced formatListings function with debugging:
+  const formatListings = useCallback((apiData) => {
+    console.log('🔄 Starting formatListings with:', apiData);
+    console.log('📊 Input data length:', apiData.length);
+    
+    if (!Array.isArray(apiData)) {
+      console.error('❌ formatListings received non-array:', typeof apiData);
+      return [];
+    }
+    
+    const formatted = apiData.map((property, index) => {
+      console.log(`🏠 Processing property ${index + 1}:`, property);
+      
+      // Check for required fields
+      const requiredFields = ['id', 'title', 'price', 'location'];
+      const missingFields = requiredFields.filter(field => !property[field]);
+      if (missingFields.length > 0) {
+        console.warn(`⚠️ Property ${index + 1} missing fields:`, missingFields);
       }
-    };
-
-    fetchProperties();
+      
+      // Debug media processing
+      console.log(`📷 Property ${index + 1} media:`, property.media);
+      const images = property.media
+        ? property.media.filter(media => media && media.image).map(media => media.image)
+        : [];
+      console.log(`🖼️ Property ${index + 1} processed images:`, images);
+      
+      // Debug amenities processing
+      let amenities = [];
+      if (property.amenities) {
+        if (Array.isArray(property.amenities)) {
+          amenities = property.amenities;
+          console.log(`🎯 Property ${index + 1} amenities:`, amenities);
+        } else if (typeof property.amenities === 'string') {
+          try {
+            amenities = JSON.parse(property.amenities);
+            console.log(`🎯 Property ${index + 1} amenities:`, amenities);
+          } catch (e) {
+            console.warn(`⚠️ Property ${index + 1} amenities parsing failed:`, e);
+            amenities = [];
+          }
+        } else {
+          console.warn(`⚠️ Property ${index + 1} has no valid amenities`);
+        }
+      } else {
+        console.warn(`⚠️ Property ${index + 1} has no amenities`);
+      }
+      
+      const formattedProperty = {
+        id: property.id,
+        title: property.title || 'Untitled Property',
+        price: parseFloat(property.price) || 0,
+        address: property.location || 'Address not available',
+        bedrooms: parseInt(property.bedrooms) || 0,
+        bathrooms: parseInt(property.bathrooms) || 0,
+        sqft: 0, // Not provided in API
+        propertyType: property.property_type?.toLowerCase() || 'unknown',
+        status: property.status || 'available',
+        images: images,
+        agent: {
+          name: property.agent_name || 'Agent not available',
+          phone: property.agent_phone_number || '',
+        },
+        coordinates: { 
+          lat: parseFloat(property.latitude) || 0, 
+          lng: parseFloat(property.longitude) || 0
+        },
+        isSaved: property.is_saved || false,
+        daysOnMarket: property.days_since_posted || 0,
+        amenities: amenities,
+        description: property.description || ''
+      };
+      
+      console.log(`✅ Property ${index + 1} formatted:`, formattedProperty);
+      return formattedProperty;
+    });
+    
+    console.log('🎉 formatListings completed. Result:', formatted);
+    return formatted;
   }, []);
 
-  // Apply filters based on search params
-  const applyFilters = (propertiesToFilter = properties) => {
+  // Use useCallback for applyFilters to prevent re-creation
+  const applyFilters = useCallback((propertiesToFilter = properties) => {
+    console.log('🔍 Applying filters to:', propertiesToFilter.length, 'properties');
+    
     let filtered = [...propertiesToFilter];
+    console.log('📊 Starting with:', filtered.length, 'properties');
+    
+    // Log all current search params
+    const currentParams = Object.fromEntries(searchParams);
+    console.log('🔧 Current search params:', currentParams);
     
     const query = searchParams.get('query') || '';
     const location = searchParams.get('location');
@@ -96,58 +135,176 @@ const PropertyListings = () => {
     const bedrooms = searchParams.get('bedrooms');
     const bathrooms = searchParams.get('bathrooms');
 
+    // Apply each filter with logging
     if (query) {
+      const beforeLength = filtered.length;
       filtered = filtered.filter(property =>
         property.title.toLowerCase().includes(query.toLowerCase()) ||
         property.address.toLowerCase().includes(query.toLowerCase()) ||
         property.description.toLowerCase().includes(query.toLowerCase())
       );
+      console.log(`🔍 Query filter "${query}": ${beforeLength} → ${filtered.length}`);
     }
 
     if (location) {
+      const beforeLength = filtered.length;
       filtered = filtered.filter(property =>
         property.address.toLowerCase().includes(location.toLowerCase())
       );
+      console.log(`📍 Location filter "${location}": ${beforeLength} → ${filtered.length}`);
     }
 
     if (propertyType && propertyType !== 'all') {
+      const beforeLength = filtered.length;
       filtered = filtered.filter(property =>
         property.propertyType === propertyType
       );
+      console.log(`🏠 PropertyType filter "${propertyType}": ${beforeLength} → ${filtered.length}`);
     }
 
     if (minPrice) {
+      const beforeLength = filtered.length;
       const minPriceNum = parseFloat(minPrice);
       filtered = filtered.filter(property =>
         property.price >= minPriceNum
       );
+      console.log(`💰 MinPrice filter "${minPrice}": ${beforeLength} → ${filtered.length}`);
     }
 
     if (maxPrice) {
+      const beforeLength = filtered.length;
       const maxPriceNum = parseFloat(maxPrice);
       filtered = filtered.filter(property =>
         property.price <= maxPriceNum
       );
+      console.log(`💰 MaxPrice filter "${maxPrice}": ${beforeLength} → ${filtered.length}`);
     }
 
     if (bedrooms) {
+      const beforeLength = filtered.length;
       filtered = filtered.filter(property =>
         property.bedrooms >= parseInt(bedrooms)
       );
+      console.log(`🛏️ Bedrooms filter "${bedrooms}": ${beforeLength} → ${filtered.length}`);
     }
 
     if (bathrooms) {
+      const beforeLength = filtered.length;
       filtered = filtered.filter(property =>
         property.bathrooms >= parseInt(bathrooms)
       );
+      console.log(`🚿 Bathrooms filter "${bathrooms}": ${beforeLength} → ${filtered.length}`);
     }
 
     // Apply sorting
     filtered = sortProperties(filtered, sortBy);
+    console.log(`📊 Final filtered properties: ${filtered.length}`);
+    console.log('🎯 Final filtered list:', filtered);
     
     setFilteredProperties(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
+  }, [properties, searchParams, sortBy]);
+
+  // API VALIDATION
+  const validateApiResponse = (data) => {
+    if (!Array.isArray(data)) {
+      console.error('❌ API response is not an array');
+      return false;
+    }
+    
+    if (data.length === 0) {
+      console.warn('⚠️ API response is empty array');
+      return true; // Empty is valid
+    }
+    
+    // Check first item structure
+    const firstItem = data[0];
+    const requiredFields = ['id', 'title', 'price', 'location'];
+    const missingFields = requiredFields.filter(field => !(field in firstItem));
+    
+    if (missingFields.length > 0) {
+      console.error('❌ API response missing required fields:', missingFields);
+      console.error('📋 Available fields:', Object.keys(firstItem));
+      return false;
+    }
+    
+    console.log('✅ API response structure is valid');
+    return true;
   };
+
+  // This useEffect will run when currentPage or itemsPerPage changes, or when searchParams change
+  useEffect(() => {
+    const fetchProperties = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log('🔄 Fetching paginated properties...');
+        const data = await getAllProperties(currentPage, itemsPerPage, Object.fromEntries(searchParams.entries()));
+
+        // Validate API response
+        if (!data || !Array.isArray(data.results)) {
+          throw new Error('Invalid API response format');
+        }
+
+        // Validate the response structure
+        validateApiResponse(data.results);
+
+        // Format and store listings
+        const formatted = formatListings(data.results);
+        setProperties(formatted);
+        setFilteredProperties(formatted);
+
+        // Pagination
+        setTotalResults(data.count); // total records
+        setTotalPages(Math.ceil(data.count / itemsPerPage));
+
+        console.log(`✅ Loaded page ${currentPage} with ${formatted.length} properties`);
+      } catch (err) {
+        console.error('💥 Error loading properties:', err);
+        setError('Failed to load properties. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Create stable params object for comparison
+    const currentParams = Object.fromEntries(searchParams);
+    
+    // Only fetch if params have changed or it's the initial mount
+    if (isInitialMount.current || 
+        JSON.stringify(currentParams) !== JSON.stringify(prevParams.current)) {
+      fetchProperties();
+      prevParams.current = currentParams;
+    }
+
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+    }
+  }, [currentPage, itemsPerPage, searchParams, formatListings]);
+
+  // Apply filters whenever properties or search params change
+  useEffect(() => {
+    if (properties.length > 0) {
+      applyFilters(properties);
+    }
+  }, [properties, applyFilters]);
+
+  // Component state debugging
+  useEffect(() => {
+    console.log('📊 Properties state changed:', properties.length);
+  }, [properties]);
+
+  useEffect(() => {
+    console.log('🔍 FilteredProperties state changed:', filteredProperties.length);
+  }, [filteredProperties]);
+
+  useEffect(() => {
+    console.log('⏳ Loading state changed:', loading);
+  }, [loading]);
+
+  useEffect(() => {
+    console.log('❌ Error state changed:', error);
+  }, [error]);
 
   // Sort properties
   const sortProperties = (propertiesToSort, sortOption) => {
@@ -177,7 +334,7 @@ const PropertyListings = () => {
     setCurrentPage(1); // Reset to first page when sorting changes
   };
 
-  // Handle filter changes - Fixed to not include empty amenities
+  // Handle filter changes - Fixed to not include empty amenities and removed applyFilters call
   const handleFilterChange = (filters) => {
     const newSearchParams = new URLSearchParams();
     
@@ -194,7 +351,7 @@ const PropertyListings = () => {
     
     setSearchParams(newSearchParams);
     setSearchKeyword(filters.query || '');
-    applyFilters();
+    setCurrentPage(1);  // Reset to first page when filters change
   };
 
   // Handle property save/unsave
@@ -232,30 +389,6 @@ const PropertyListings = () => {
     window.scrollTo(0, 0);
   };
 
-  // Get breadcrumbs
-  const getBreadcrumbs = () => {
-    const breadcrumbs = [
-      { label: 'Home', path: '/homepage' },
-      { label: 'Properties', path: '/property-listings' }
-    ];
-
-    const location = searchParams.get('location');
-    const propertyType = searchParams.get('propertyType');
-
-    if (location) {
-      breadcrumbs.push({ label: location, path: null });
-    }
-
-    if (propertyType && propertyType !== 'all') {
-      breadcrumbs.push({ 
-        label: propertyType.charAt(0).toUpperCase() + propertyType.slice(1), 
-        path: null 
-      });
-    }
-
-    return breadcrumbs;
-  };
-
   const helmet = (
     <Helmet>
       <title>Property Listings | EstateHub</title>
@@ -280,8 +413,11 @@ const PropertyListings = () => {
                 </h1>
                 <p className="text-text-secondary mt-1">
                   {loading ? 'Loading...' : 
-                    `Showing ${Math.min(indexOfFirstItem + 1, filteredProperties.length)}-${Math.min(indexOfLastItem, filteredProperties.length)} of ${filteredProperties.length} properties`}
+                    `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${
+                      Math.min(currentPage * itemsPerPage, totalResults)
+                    } of ${totalResults} properties`}
                 </p>
+
               </div>
 
               {/* Mobile Controls */}
@@ -715,6 +851,7 @@ const PropertyListings = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
     </>
   );

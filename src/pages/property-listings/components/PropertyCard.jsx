@@ -440,45 +440,6 @@ const PropertyCard = ({
             )}
           </div>
 
-          {/* Wide Screen Layout */}
-          {/* <div className="hidden sm:block">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {property?.agent?.name && (
-                  <>
-                    <UserAvatar firstName={firstName}  lastName={lastName} size="w-12 h-12 text-lg"/>
-                    
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">
-                        {property.agent.name}
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {property?.agent?.phone && (
-                <div className="flex items-center space-x-2 text-sm text-text-secondary">
-                  <span>{property.agent.phone}</span>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      copyToClipboard(property.agent.phone, property.id);
-                    }}
-                    className="p-1 text-text-secondary hover:text-primary-700 hover:bg-primary-50 rounded-full transition-colors duration-200"
-                    title="Copy phone number"
-                  >
-                    {copiedPhone === property.id ? (
-                      <Icon name="Check" size={12} className="text-green-500" />
-                    ) : (
-                      <Icon name="Copy" size={12} />
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div> */}
 
         </div>
       </div>

@@ -20,8 +20,15 @@ const TenantDashboard = () => {
   const navigate = useNavigate();
 
   // Format backend favorites data
-  const formatFavorites = (data) =>
-    data.map((item) => ({
+  const formatFavorites = (data) => {
+    // Check if data is an object and if it contains a 'results' array
+    if (!data || !Array.isArray(data.results)) {
+      console.error("API response for favorites is not valid:", data);
+      return []; // Return an empty array to prevent the .map() error
+    }
+    
+    // Map over the 'results' array instead of the root data object
+    return data.results.map((item) => ({
       id: item.id,
       propertyId: item.property.id,
       title: item.property.title,
@@ -37,6 +44,7 @@ const TenantDashboard = () => {
       daysSincePosted: item.property.days_since_posted,
       isAvailableNow: item.property.is_available_now,
     }));
+  };
 
   // Fetch saved listings
   const fetchSavedListings = async () => {

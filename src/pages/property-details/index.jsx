@@ -1,5 +1,4 @@
-// src/pages/property-details/index.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
@@ -10,7 +9,6 @@ import { getPropertyDetails, saveFavorite, removeFavorite  } from '../../service
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 
-
 // Import components
 import ImageGallery from './components/ImageGallery';
 import PropertyOverview from './components/PropertyOverview';
@@ -18,7 +16,6 @@ import PropertyInfo from './components/PropertyInfo';
 import ContactForm from './components/ContactForm';
 import SimilarProperties from './components/SimilarProperties';
 import LoadingState from './components/LoadingState';
-
 
 const PropertyDetails = () => {
   const [searchParams] = useSearchParams();
@@ -28,30 +25,28 @@ const PropertyDetails = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [showContactForm, setShowContactForm] = useState(false);
-  const [copiedPhone, setCopiedPhone] = useState(null); // <-- Add this line
+  const [copiedPhone, setCopiedPhone] = useState(null);
   const { showToast } = useToast();
   const { accessToken, user } = useAuth();
-
-
+  
   const propertyId = searchParams.get('id');
+  const requestIdRef = useRef(0); // Track latest request ID
 
   // Helper function for copying to clipboard
   const copyToClipboard = (text, id) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopiedPhone(id);
-      setTimeout(() => setCopiedPhone(null), 2000); // Reset after 2 seconds
+      setTimeout(() => setCopiedPhone(null), 2000);
     }).catch(err => {
       console.error('Failed to copy text: ', err);
     });
   };
 
-  // Helper function to convert TZ phone format (0712123123) to international (+255712123123)
+  // Helper function to convert TZ phone format
   const formatPhoneForSMS = (phone) => {
     if (!phone) return '';
-    // Remove all spaces and replace leading 0 with +255
     return phone.replace(/\s/g, '').replace(/^0/, '+255');
   };
-
 
   // Similar properties mock data (you can replace this with another API call later)
   const similarProperties = [
@@ -88,6 +83,8 @@ const PropertyDetails = () => {
   ];
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current; // Generate unique request ID
+    
     const fetchProperty = async () => {
       if (!propertyId) {
         setError('No property ID provided');
@@ -96,53 +93,58 @@ const PropertyDetails = () => {
       }
 
       try {
-      setLoading(true);
-      setError(null);
-      const data = await getPropertyDetails(propertyId);
-      
-      // Process media array
-      const images = data.media
-        .filter(media => media.image) // Only items with images
-        .map(media => media.image);   // Extract image URLs
-      
-      const videos = data.media
-        .filter(media => media.video) // Only items with videos
-        .map(media => media.video);   // Extract video URLs
-      
-      // Get first video for the gallery (or null if none)
-      const primaryVideo = videos.length > 0 ? videos[0] : null;
-      
-      // Map API response to component structure
-      const mappedProperty = {
-        ...data,
-        daysOnMarket: data.days_since_posted,
-        agent_name: data.agent_name,
-        agent_email: data.agent_email,
-        agent_phone_number: data.agent_phone_number,
-        agent_whatsapp_number: data.agent_whatsapp_number, // Make sure your API provides this
+        setLoading(true);
+        setError(null);
+        const data = await getPropertyDetails(propertyId);
         
-        agent: {
-          name: data.agent_name, // The full name, e.g., "John Doe"
-          first_name: data.agent_name ? data.agent_name.split(' ')[0] : '', // Extracts "John"
-          last_name: data.agent_name ? data.agent_name.split(' ').slice(1).join(' ') : '', // Extracts "Doe"
-          email: data.agent_email,
-          phone: data.agent_phone_number
-        },
-        images,          // Processed image URLs
-        videos,          // All video URLs
-      };
-      
-      setProperty(mappedProperty);
-      setIsSaved(data.is_saved);
-    } catch (error) {
-      // ... error handling ...
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Only process response if it's the latest request
+        if (requestId === requestIdRef.current) {
+          // Process media array
+          const images = data.media
+            .filter(media => media.image)
+            .map(media => media.image);
+          
+          const videos = data.media
+            .filter(media => media.video)
+            .map(media => media.video);
+          
+          // Map API response to component structure
+          const mappedProperty = {
+            ...data,
+            daysOnMarket: data.days_since_posted,
+            agent_name: data.agent_name,
+            agent_email: data.agent_email,
+            agent_phone_number: data.agent_phone_number,
+            agent_whatsapp_number: data.agent_whatsapp_number,
+            
+            agent: {
+              name: data.agent_name,
+              first_name: data.agent_name ? data.agent_name.split(' ')[0] : '',
+              last_name: data.agent_name ? data.agent_name.split(' ').slice(1).join(' ') : '',
+              email: data.agent_email,
+              phone: data.agent_phone_number
+            },
+            images,
+            videos,
+          };
+          
+          setProperty(mappedProperty);
+          setIsSaved(data.is_saved);
+        }
+      } catch (error) {
+        if (requestId === requestIdRef.current) {
+          console.error('Error fetching property details:', error);
+          setError(error.message || 'Failed to load property details');
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    };
 
-  fetchProperty();
-}, [propertyId]);
+    fetchProperty();
+  }, [propertyId]);
 
   
 const handleSave = async (e) => {
@@ -348,12 +350,7 @@ const handleSave = async (e) => {
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
               />
-              {/* Property Tabs */}
-              {/* <PropertyTabs 
-                property={property}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-              /> */}
+
             </div>
 
             {/* Right Column - Sticky Sidebar (4 columns) */}
@@ -468,10 +465,6 @@ const handleSave = async (e) => {
                         }
                       </span>
                     </div>
-                    {/* <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-sm text-text-secondary">MLS Number</span>
-                      <span className="text-sm font-mono text-text-primary">{property.mls || 'N/A'}</span>
-                    </div> */}
                     <div className="flex justify-between items-center py-2">
                       <span className="text-sm text-text-secondary">Property Type</span>
                       <span className="text-sm font-medium text-accent bg-accent-100 px-2 py-1 rounded capitalize">
@@ -491,14 +484,6 @@ const handleSave = async (e) => {
         </div>
       </main>
 
-      {/* Contact Form Modal */}
-      {/* {showContactForm && (
-        <ContactForm
-          property={property}
-          agent={property.agent}
-          onClose={() => setShowContactForm(false)}
-        />
-      )} */}
       <Footer />
     </div>
     </>
