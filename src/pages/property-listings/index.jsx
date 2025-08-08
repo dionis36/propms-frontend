@@ -1,39 +1,150 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import Icon from '../../components/AppIcon';
 import { Helmet } from 'react-helmet-async';
-import { getAllProperties } from '../../services/api';
+import { useProperties } from '../../hooks/useProperties';
 
 import PropertyCard from './components/PropertyCard';
 import FilterPanel from './components/FilterPanel';
 import MapView from './components/MapView';
 import SortDropdown from './components/SortDropdown';
 
+// 🎯 DEBOUNCE UTILITY FUNCTION
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// 💾 CLIENT-SIDE CACHE UTILITY
+class PropertyCache {
+  constructor(maxSize = 50) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+  }
+
+  generateKey(page, itemsPerPage, searchParams) {
+    const params = Object.fromEntries(searchParams);
+    return JSON.stringify({ page, itemsPerPage, ...params });
+  }
+
+  get(page, itemsPerPage, searchParams) {
+    const key = this.generateKey(page, itemsPerPage, searchParams);
+    const cached = this.cache.get(key);
+    
+    if (cached) {
+      console.log('💾 Cache HIT for:', key);
+      // Move to end (LRU)
+      this.cache.delete(key);
+      this.cache.set(key, cached);
+      return cached;
+    }
+    
+    console.log('💾 Cache MISS for:', key);
+    return null;
+  }
+
+  set(page, itemsPerPage, searchParams, data) {
+    const key = this.generateKey(page, itemsPerPage, searchParams);
+    
+    // Remove oldest if at max size
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    
+    const cacheEntry = {
+      data,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutes TTL
+    };
+    
+    this.cache.set(key, cacheEntry);
+    console.log('💾 Cache SET for:', key);
+  }
+
+  isExpired(entry) {
+    return Date.now() > entry.expiresAt;
+  }
+
+  clear() {
+    this.cache.clear();
+    console.log('💾 Cache CLEARED');
+  }
+
+  size() {
+    return this.cache.size;
+  }
+}
+
+// Global cache instance
+const propertyCache = new PropertyCache();
+
 const PropertyListings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
+  const [viewMode, setViewMode] = useState('list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
   const [searchKeyword, setSearchKeyword] = useState(searchParams.get('query') || '');
   const desktopListRef = useRef();
-  const prevParams = useRef({}); // Track previous parameters
 
-  const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // Backend limit
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalResults, setTotalResults] = useState(0); // From backend
-  const currentProperties = filteredProperties; // because now it's already paged from backend
+  const [itemsPerPage] = useState(10);
 
-  // Use a ref to track if it's the initial mount
   const isInitialMount = useRef(true);
+
+  // 🎯 DEBOUNCED SEARCH PARAMS - Only triggers API call after 500ms of inactivity
+  const debouncedSearchParams = useDebounce(searchParams, 500);
+
+  // Prepare filters for useProperties hook
+  const filters = useMemo(() => {
+    const params = Object.fromEntries(debouncedSearchParams);
+    return {
+      query: params.query || '',
+      location: params.location || '',
+      propertyType: params.propertyType || '',
+      minPrice: params.minPrice || '',
+      maxPrice: params.maxPrice || '',
+      bedrooms: params.bedrooms || '',
+      bathrooms: params.bathrooms || '',
+      amenities: params.amenities ? JSON.parse(params.amenities) : []
+    };
+  }, [debouncedSearchParams]);
+
+  // 🚀 USE PROPERTIES HOOK - Replaces manual data fetching
+  const {
+    data: apiResponse,
+    isLoading: loading,
+    error: queryError,
+    isError
+  } = useProperties({
+    page: currentPage,
+    limit: itemsPerPage,
+    filters
+  });
+
+  // Process error state
+  const error = isError ? 'Failed to load properties. Please try again later.' : null;
+
+  // Extract data from API response
+  const properties = apiResponse?.results || [];
+  const totalResults = apiResponse?.count || 0;
+  const totalPages = Math.ceil(totalResults / itemsPerPage);
+  const currentProperties = filteredProperties;
 
   // Enhanced formatListings function with debugging:
   const formatListings = useCallback((apiData) => {
@@ -90,7 +201,7 @@ const PropertyListings = () => {
         address: property.location || 'Address not available',
         bedrooms: parseInt(property.bedrooms) || 0,
         bathrooms: parseInt(property.bathrooms) || 0,
-        sqft: 0, // Not provided in API
+        sqft: 0,
         propertyType: property.property_type?.toLowerCase() || 'unknown',
         status: property.status || 'available',
         images: images,
@@ -116,14 +227,13 @@ const PropertyListings = () => {
     return formatted;
   }, []);
 
-  // Use useCallback for applyFilters to prevent re-creation
+  // Client-side filtering and sorting
   const applyFilters = useCallback((propertiesToFilter = properties) => {
     console.log('🔍 Applying filters to:', propertiesToFilter.length, 'properties');
     
     let filtered = [...propertiesToFilter];
     console.log('📊 Starting with:', filtered.length, 'properties');
     
-    // Log all current search params
     const currentParams = Object.fromEntries(searchParams);
     console.log('🔧 Current search params:', currentParams);
     
@@ -213,10 +323,9 @@ const PropertyListings = () => {
     
     if (data.length === 0) {
       console.warn('⚠️ API response is empty array');
-      return true; // Empty is valid
+      return true;
     }
     
-    // Check first item structure
     const firstItem = data[0];
     const requiredFields = ['id', 'title', 'price', 'location'];
     const missingFields = requiredFields.filter(field => !(field in firstItem));
@@ -231,63 +340,38 @@ const PropertyListings = () => {
     return true;
   };
 
-  // This useEffect will run when currentPage or itemsPerPage changes, or when searchParams change
+  // Process data when API response changes
   useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        console.log('🔄 Fetching paginated properties...');
-        const data = await getAllProperties(currentPage, itemsPerPage, Object.fromEntries(searchParams.entries()));
-
-        // Validate API response
-        if (!data || !Array.isArray(data.results)) {
-          throw new Error('Invalid API response format');
-        }
-
-        // Validate the response structure
-        validateApiResponse(data.results);
-
-        // Format and store listings
-        const formatted = formatListings(data.results);
-        setProperties(formatted);
-        setFilteredProperties(formatted);
-
-        // Pagination
-        setTotalResults(data.count); // total records
-        setTotalPages(Math.ceil(data.count / itemsPerPage));
-
-        console.log(`✅ Loaded page ${currentPage} with ${formatted.length} properties`);
-      } catch (err) {
-        console.error('💥 Error loading properties:', err);
-        setError('Failed to load properties. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Create stable params object for comparison
-    const currentParams = Object.fromEntries(searchParams);
-    
-    // Only fetch if params have changed or it's the initial mount
-    if (isInitialMount.current || 
-        JSON.stringify(currentParams) !== JSON.stringify(prevParams.current)) {
-      fetchProperties();
-      prevParams.current = currentParams;
+    if (properties && properties.length > 0) {
+      console.log('🔄 Processing API data...');
+      validateApiResponse(properties);
+      
+      // 💾 CACHE THE RESPONSE (simulating cache behavior for consistency)
+      propertyCache.set(currentPage, itemsPerPage, debouncedSearchParams, { results: properties, count: totalResults });
+      
+      // Format and apply filters
+      const formatted = formatListings(properties);
+      applyFilters(formatted);
+      
+      console.log(`✅ Loaded page ${currentPage} with ${formatted.length} properties`);
+    } else if (properties && properties.length === 0 && !loading) {
+      setFilteredProperties([]);
     }
+  }, [properties, formatListings, applyFilters, currentPage, itemsPerPage, debouncedSearchParams, totalResults, loading]);
 
+  // Reset page when debounced search params change (not immediate params)
+  useEffect(() => {
+    if (!isInitialMount.current) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchParams]);
+
+  // Mark initial mount as complete
+  useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
     }
-  }, [currentPage, itemsPerPage, searchParams, formatListings]);
-
-  // Apply filters whenever properties or search params change
-  useEffect(() => {
-    if (properties.length > 0) {
-      applyFilters(properties);
-    }
-  }, [properties, applyFilters]);
+  }, []);
 
   // Component state debugging
   useEffect(() => {
@@ -305,6 +389,11 @@ const PropertyListings = () => {
   useEffect(() => {
     console.log('❌ Error state changed:', error);
   }, [error]);
+
+  // Log cache stats
+  useEffect(() => {
+    console.log('💾 Cache size:', propertyCache.size());
+  }, [debouncedSearchParams]);
 
   // Sort properties
   const sortProperties = (propertiesToSort, sortOption) => {
@@ -331,16 +420,16 @@ const PropertyListings = () => {
     setSortBy(newSortBy);
     const sorted = sortProperties(filteredProperties, newSortBy);
     setFilteredProperties(sorted);
-    setCurrentPage(1); // Reset to first page when sorting changes
+    setCurrentPage(1);
   };
 
-  // Handle filter changes - Fixed to not include empty amenities and removed applyFilters call
-  const handleFilterChange = (filters) => {
+  // 🎯 DEBOUNCED FILTER CHANGE - This now updates searchParams immediately for UI responsiveness
+  // but the actual API call is debounced via debouncedSearchParams
+  const handleFilterChange = useCallback((filters) => {
     const newSearchParams = new URLSearchParams();
     
     Object.entries(filters).forEach(([key, value]) => {
       if (key === 'amenities') {
-        // Only add amenities if array has items
         if (Array.isArray(value) && value.length > 0) {
           newSearchParams.set(key, JSON.stringify(value));
         }
@@ -349,45 +438,93 @@ const PropertyListings = () => {
       }
     });
     
+    // Update URL immediately for UI responsiveness
     setSearchParams(newSearchParams);
     setSearchKeyword(filters.query || '');
-    setCurrentPage(1);  // Reset to first page when filters change
-  };
+    
+    console.log('🎯 Filter change triggered, debounced API call will follow...');
+  }, [setSearchParams]);
 
   // Handle property save/unsave
   const handlePropertySave = (propertyId, isSaved) => {
-    setProperties(prev => prev.map(property =>
-      property.id === propertyId ? { ...property, isSaved } : property
-    ));
     setFilteredProperties(prev => prev.map(property =>
       property.id === propertyId ? { ...property, isSaved } : property
     ));
   };
 
-  // Handle keyword search - Modified for real-time search
+  // Handle keyword search
   const handleKeywordSearch = (e) => {
     if (e.key === 'Enter' || e.type === 'click') {
       handleFilterChange({ ...Object.fromEntries(searchParams), query: searchKeyword });
     }
   };
 
-  // Handle real-time search input change
-  const handleSearchInputChange = (value) => {
+  // 🎯 DEBOUNCED REAL-TIME SEARCH - Updates UI immediately, API call is debounced
+  const handleSearchInputChange = useCallback((value) => {
     setSearchKeyword(value);
-    // Apply filter immediately as user types
     handleFilterChange({ ...Object.fromEntries(searchParams), query: value });
-  };
+  }, [searchParams, handleFilterChange]);
 
   // Handle page change
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
     
-    // Scroll to top of property list
     if (desktopListRef.current) {
       desktopListRef.current.scrollTop = 0;
     }
     window.scrollTo(0, 0);
   };
+
+  // Get breadcrumbs
+  const getBreadcrumbs = () => {
+    const breadcrumbs = [
+      { label: 'Home', path: '/homepage' },
+      { label: 'Properties', path: '/property-listings' }
+    ];
+
+    const location = searchParams.get('location');
+    const propertyType = searchParams.get('propertyType');
+
+    if (location) {
+      breadcrumbs.push({ label: location, path: null });
+    }
+
+    if (propertyType && propertyType !== 'all') {
+      breadcrumbs.push({ 
+        label: propertyType.charAt(0).toUpperCase() + propertyType.slice(1), 
+        path: null 
+      });
+    }
+
+    return breadcrumbs;
+  };
+
+  // 🧪 CACHE MANAGEMENT UTILITIES FOR DEBUGGING
+  const clearCache = () => {
+    propertyCache.clear();
+    console.log('💾 Cache manually cleared');
+  };
+
+  const getCacheStats = () => {
+    console.log('💾 Cache Stats:', {
+      size: propertyCache.size(),
+      maxSize: propertyCache.maxSize
+    });
+  };
+
+  // Rendering debugging
+  console.log('🎨 Rendering with state:', {
+    loading,
+    error,
+    propertiesCount: properties.length,
+    filteredPropertiesCount: filteredProperties.length,
+    currentPropertiesCount: currentProperties.length,
+    viewMode,
+    currentPage,
+    totalPages,
+    cacheSize: propertyCache.size(),
+    debouncedSearchParams: Object.fromEntries(debouncedSearchParams)
+  });
 
   const helmet = (
     <Helmet>
@@ -417,7 +554,10 @@ const PropertyListings = () => {
                       Math.min(currentPage * itemsPerPage, totalResults)
                     } of ${totalResults} properties`}
                 </p>
-
+                {/* 💾 Cache status indicator for debugging */}
+                <p className="text-xs text-text-secondary mt-1">
+                  💾 Cache: {propertyCache.size()}/{propertyCache.maxSize} entries
+                </p>
               </div>
 
               {/* Mobile Controls */}
@@ -521,6 +661,15 @@ const PropertyListings = () => {
                   <Icon name="SlidersHorizontal" size={16} />
                   <span className="hidden sm:inline">Filters</span>
                 </button>
+
+                {/* 🧪 Debug Cache Controls (remove in production) */}
+                <button
+                  onClick={clearCache}
+                  className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded"
+                  title="Clear Cache"
+                >
+                  Clear Cache
+                </button>
               </div>
             </div>
           </div>
@@ -592,7 +741,7 @@ const PropertyListings = () => {
                           </div>
                         ))}
                         
-                        {filteredProperties.length === 0 && (
+                        {filteredProperties.length === 0 && !loading && (
                           <div className="text-center py-12">
                             <Icon name="Search" size={48} className="text-secondary mx-auto mb-4" />
                             <h3 className="text-lg font-semibold text-text-primary mb-2">
@@ -734,7 +883,7 @@ const PropertyListings = () => {
                           </div>
                         ))}
                         
-                        {filteredProperties.length === 0 && (
+                        {filteredProperties.length === 0 && !loading && (
                           <div className="text-center py-12">
                             <Icon name="Search" size={48} className="text-secondary mx-auto mb-4" />
                             <h3 className="text-lg font-semibold text-text-primary mb-2">
