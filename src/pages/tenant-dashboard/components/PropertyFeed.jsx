@@ -1,63 +1,69 @@
 // pages/tenant-dashboard/components/PropertyFeed.jsx
-import { useEffect, useState } from 'react';
-import { getAllProperties } from '../../../services/api';
+import { Link } from 'react-router-dom'; // Import the Link component
 import StatusBadge from '../../../components/StatusBadge';
-
+import { useProperties } from '../../../hooks/useProperties'; // Import the new hook
 
 export default function PropertyFeed() {
-  const [properties, setProperties] = useState([]);
+  const { data, isLoading, isError, error } = useProperties({
+    page: 1,
+    limit: 5, // Fetch only 5 properties for the feed
+    filters: { status: 'AVAILABLE' }
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Call getAllProperties with default pagination (page=1, limit=10)
-        const data = await getAllProperties(1, 10);
-        
-        // Handle the paginated response - data.results contains the properties array
-        const propertiesArray = data.results || [];
-        
-        const filtered = propertiesArray
-          .filter(p => p.status === 'AVAILABLE')
-          .slice(0, 5)
-          .map(p => ({
-            id: p.id,
-            name: p.title,
-            status: p.status,
-            price: `TZS ${parseInt(p.price).toLocaleString()}`,
-            // Get first valid image URL from media array
-            imageUrl: p.media.find(m => m.image)?.image || null
-          }));
+  const properties = data?.results
+    .map(p => ({
+      id: p.id,
+      name: p.title,
+      status: p.status,
+      price: `TZS ${parseInt(p.price).toLocaleString()}`,
+      imageUrl: p.media.find(m => m.image)?.image || null
+    })) || [];
 
-        setProperties(filtered);
-      } catch (error) {
-        console.error('Failed to load property feed:', error);
-        // Handle specific error cases
-        if (error.response?.status === 404) {
-          console.error('Properties endpoint not found');
-        } else if (error.response?.status === 401) {
-          console.error('Unauthorized - token may be invalid');
-        }
-      }
-    };
+  if (isLoading) {
+    return (
+      <div className="card p-6">
+        <h2 className="text-xl font-semibold text-text-primary mb-4">New Vacant Properties</h2>
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-start animate-pulse">
+              <div className="bg-gray-200 rounded-xl w-12 h-12 flex-shrink-0" />
+              <div className="ml-3 w-full">
+                <div className="h-5 bg-gray-200 rounded w-3/4 mb-1"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-    fetchData();
-  }, []);
+  if (isError) {
+    console.error('Failed to load property feed:', error);
+    return (
+      <div className="card p-6 text-center text-red-500">
+        <h2 className="text-xl font-semibold text-text-primary mb-2">Error</h2>
+        <p>Failed to load properties. Please try again later.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="card p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-text-primary">New Vacant Properties</h2>
-        <a href="/search" className="text-primary text-sm font-medium hover:underline">
+        {/* Use the Link component for client-side navigation */}
+        <Link to="/property-listings" className="text-primary text-sm font-medium hover:underline">
           View All
-        </a>
+        </Link>
       </div>
       
       <div className="space-y-4">
         {properties.map(property => (
-          <a 
+          <Link 
             key={property.id}
-            href={`http://localhost:4028/property-details?id=${property.id}`}
-            className="flex items-start hover:bg-gray-50 rounded-lg transition-colors duration-200 no-underline text-inherit"
+            to={`/property-details?id=${property.id}`}
+              className="flex items-start hover:bg-gray-50 rounded-lg transition-colors duration-200 no-underline text-inherit"
           >
             {property.imageUrl ? (
               <img 
@@ -75,11 +81,9 @@ export default function PropertyFeed() {
                 <span className="text-sm text-text-secondary">{property.price}</span>
               </div>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
-      
-      
     </div>
   );
 }

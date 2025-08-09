@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../../components/ui/Header';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { getMyProperties } from '../../services/api'; // Adjust path to match your structure
+import { useMyProperties } from '../../hooks/useMyProperties';
 import { useAuth } from '../../contexts/AuthContext'; // If you're using auth context
 
 import WelcomeBanner from './components/WelcomeBanner';
@@ -12,8 +12,6 @@ import PerformanceMetrics from './components/PerformanceMetrics';
 import ActiveListings from './components/ActiveListings';
 
 const AgentDashboard = () => {
-  const [loading, setLoading] = useState(true);
-  const [listings, setListings] = useState([]);
   const { accessToken, user } = useAuth(); // assuming your auth context provides token and user info
   const navigate = useNavigate();
 
@@ -55,36 +53,22 @@ const AgentDashboard = () => {
     }));
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getMyProperties(accessToken);
-        const formatted = formatListings(data);
-        setListings(formatted);
-      } catch (error) {
-        console.error("Failed to fetch listings:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { data: listings, isLoading: loading, error } = useMyProperties(accessToken, formatListings);
 
-    fetchData();
-  }, [accessToken]);
-
-  const vacantListings = listings.filter(p => p.status === 'Available').length;
-  const occupiedListings = listings.filter(p => p.status === 'Occupied').length;
+  const vacantListings = listings?.filter(p => p.status === 'Available').length || 0;
+  const occupiedListings = listings?.filter(p => p.status === 'Occupied').length || 0;
 
   // Calculate average price properly from numeric values
   const numericPrices = listings
-    .map(p => p.price)
-    .filter(price => !isNaN(price) && price > 0);
+    ?.map(p => p.price)
+    .filter(price => !isNaN(price) && price > 0) || [];
 
   const avg = numericPrices.length > 0
     ? Math.round(numericPrices.reduce((sum, val) => sum + val, 0) / numericPrices.length)
     : 0;
 
   const metrics = {
-    totalListings: listings.length,
+    totalListings: listings?.length || 0,
     vacantListings,
     occupiedListings,
     avgPrice: `TZS ${avg.toLocaleString()}`,
@@ -184,7 +168,7 @@ const AgentDashboard = () => {
             </button>
           </div>
           
-          <ActiveListings listings={listings} />
+          <ActiveListings listings={listings || []} />
         </div>
       </div>
     </div>

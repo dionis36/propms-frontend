@@ -16,3 +16,4 @@ export function useProperties({ page = 1, limit = 10, filters = {} }) {
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 }
+

@@ -8,21 +8,29 @@ import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../../components/AppIcon';
 import Toast from '../../components/ui/Toast';
+import { useUserProfile } from '../../hooks/useUserProfile';
 
-import { getUserProfile, updateUserProfile } from '../../services/api'; // Adjust the import path as necessary
+import { updateUserProfile } from '../../services/api'; // Adjust the import path as necessary
 
 const UserProfileSettings = () => {
   const [activeTab, setActiveTab] = useState('profile');
-  const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState('saved');
   const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
 
   
-  const { accessToken, logout, updateUserContext,   } = useAuth();
+  const { accessToken, logout, updateUserContext } = useAuth();
+  
+  const { data: userProfile, isLoading, error } = useUserProfile(accessToken, logout);
+
+  // Update local user state when profile data is fetched
+  useEffect(() => {
+    if (userProfile) {
+      setUser(userProfile);
+    }
+  }, [userProfile]);
   
   const tabs = [
     {
@@ -44,29 +52,6 @@ const UserProfileSettings = () => {
   const filteredTabs = tabs.filter(tab => 
     tab.roles.includes('all') || (user?.role && tab.roles.includes(user.role.toLowerCase()))
   );
-
-  // Fetch user data
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setIsLoading(true);
-        const userData = await getUserProfile(accessToken);
-        setUser(userData);
-      } catch (err) {
-        console.error('Error fetching user data:', err);
-        setError(err.message);
-        
-        if (err.message.includes('401')) {
-          logout();
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchUserData();
-  }, [accessToken]);
-
 
   const handleTabChange = (tabId) => {
     if (hasUnsavedChanges) {
@@ -92,14 +77,12 @@ const UserProfileSettings = () => {
     setToast({ message, type });
   };
 
-
   const helmet = (
     <Helmet>
       <title>Settings | EstateHub</title>
       <meta name="description" content="Find your dream property with EstateHub." />
     </Helmet>
   );
-
 
 const handleManualSave = async () => {
   console.log("🧪 About to PATCH with user:", user);
@@ -123,7 +106,6 @@ const handleManualSave = async () => {
     showToast('Failed to save changes. Please try again.', 'error');
   }
 };
-
 
   if (isLoading) {
     return (
@@ -269,7 +251,6 @@ const handleManualSave = async () => {
                     )}
                   </>
                 )}
-
 
               </div>
             </div>
