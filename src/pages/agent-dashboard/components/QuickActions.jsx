@@ -1,4 +1,7 @@
 // pages/agent-dashboard/components/QuickActions.jsx
+import React from 'react';
+
+// Tailwind CSS is used for all styling
 export default function QuickActions() {
   const actions = [
     {
@@ -10,7 +13,8 @@ export default function QuickActions() {
         </svg>
       ),
       link: "/property-create-edit",
-      color: "primary"
+      iconColor: "text-red-500",
+      bgColor: "bg-red-50"
     },
     {
       title: "Edit My Profile",
@@ -21,7 +25,8 @@ export default function QuickActions() {
         </svg>
       ),
       link: "/user-profile-settings",
-      color: "accent"
+      iconColor: "text-yellow-500",
+      bgColor: "bg-yellow-50"
     },
     {
       title: "Search Properties",
@@ -32,7 +37,8 @@ export default function QuickActions() {
         </svg>
       ),
       link: "/property-listings",
-      color: "success"
+      iconColor: "text-green-500",
+      bgColor: "bg-green-50"
     },
     {
       title: "View Saved Searches",
@@ -44,60 +50,41 @@ export default function QuickActions() {
         </svg>
       ),
       link: "#",
-      color: "warning"
+      iconColor: "text-blue-500",
+      bgColor: "bg-blue-50"
     }
   ];
 
-  const getColorClasses = (color) => {
-    const colorMap = {
-      primary: 'bg-primary-100 text-primary hover:bg-primary-200 border-primary-500',
-      accent: 'bg-accent-100 text-accent-600 hover:bg-accent-200 border-accent-500',
-      success: 'bg-success-100 text-success hover:bg-success-200 border-success-500',
-      warning: 'bg-warning-100 text-warning hover:bg-warning-200 border-warning-500'
-    };
-    return colorMap[color] || colorMap.primary;
-  };
-
   return (
-    <div className="bg-surface rounded-lg shadow-elevation-1 border border-border">
-      <div className="p-6 border-b border-border">
-        <h3 className="text-lg font-semibold text-text-primary font-heading">
+    <div className="bg-surface rounded-lg shadow-elevation-1 border border-border p-6">
+      <div className="mb-4">
+        <h3 className="text-xl font-semibold text-text-primary">
           Quick Actions
         </h3>
       </div>
 
-      <div className="p-6">
-        {/* Grid layout: 1 column on mobile, 2 columns on medium/wide screens */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="gap-6">
+        {/* Responsive grid for actions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {actions.map((action, index) => (
             <a
               key={index}
               href={action.link}
-              // Default (mobile): flex items-center (icon & title in row), text-left
-              // Medium screens (md): flex-col (icon above title), justify-center, items-center, text-center
-              className={`p-2 rounded-lg border transition-all duration-200 hover:shadow-elevation-2 micro-interaction
-                flex items-center text-left
-                md:flex-col md:justify-center md:items-center md:text-center
-                ${getColorClasses(action.color)}`}
+              className="flex flex-col items-center p-4 rounded-lg border border-gray-200 transition-all duration-200 hover:shadow-md hover:bg-gray-50 text-center"
             >
-              {/* Container for Icon and Title */}
-              {/* Default (mobile): flex items-center space-x-3 (icon & title in row) */}
-              {/* Medium screens (md): flex-col space-x-0 space-y-2 (icon above title), mb-2 for spacing */}
-              <div className="flex items-center space-x-3 mb-2
-                          md:flex-col md:space-x-0 md:space-y-2 md:mb-4"> {/* Increased mb for better spacing when stacked */}
-                {/* Icon */}
-                <span className="flex-shrink-0 md:mx-auto"> {/* md:mx-auto to center icon when stacked */}
-                  {action.icon}
-                </span>
-                {/* Title */}
-                <span className="font-medium text-base text-text-primary-active">
-                  {action.title}
-                </span>
+              {/* Icon Container with colored background */}
+              <div className={`p-2 rounded-full ${action.bgColor} mb-2`}>
+                {/* The icon itself with the correct color */}
+                <span className={action.iconColor}>{action.icon}</span>
               </div>
-              {/* Description: Visible on mobile, hidden on medium screens and up */}
-              <p className="text-sm text-text-secondary md:hidden">
+              {/* Title */}
+              <span className="font-medium text-base text-text-primary-active">
+                {action.title}
+              </span>
+              {/* Description, visible only on larger screens */}
+              {/* <p className="text-sm text-text-secondary mt-1 hidden sm:block">
                 {action.description}
-              </p>
+              </p> */}
             </a>
           ))}
         </div>

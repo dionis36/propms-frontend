@@ -238,7 +238,7 @@ const TenantDashboard = () => {
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-6">
               <WelcomeBanner 
-                name={user?.first_name}
+                name={user?.first_name} 
               />
               <DashboardOverview 
                 user={user} 

@@ -30,7 +30,7 @@ const AgentDashboard = () => {
       bathrooms: item.bathrooms || 0,
       createdAt: item.created_at,
       availableFrom: item.available_from,
-      description: item.description,
+      description: item.description, 
       // Get the first image from media array
       image: item.media?.find(m => m.image)?.image || null,
       // Get the first video from media array  
@@ -67,11 +67,12 @@ const AgentDashboard = () => {
     ? Math.round(numericPrices.reduce((sum, val) => sum + val, 0) / numericPrices.length)
     : 0;
 
+
+    
   const metrics = {
     totalListings: listings?.length || 0,
     vacantListings,
     occupiedListings,
-    avgPrice: `TZS ${avg.toLocaleString()}`,
     avg: avg // Raw number for calculations
   };
 
@@ -134,30 +135,29 @@ const AgentDashboard = () => {
       <Header />
       <div className="h-16 lg:h-18"></div>
 
-      <div className="space-y-6">
-        {/* Top section with Welcome, Metrics, and QuickActions */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left: Welcome and Metrics - 3/4 width */}
-          <div className="lg:col-span-3 space-y-6">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-6">
             <WelcomeBanner
-              user = {user}
-              name={user?.first_name} 
-              vacantListings={metrics.vacantListings} 
+              user={user}
+              name={user?.first_name}
+              vacantListings={metrics.vacantListings}
             />
             <PerformanceMetrics metrics={metrics} />
           </div>
-          
-          {/* Right: QuickActions - 1/4 width */}
-          <div className="lg:col-span-1">
+
+          {/* Right Column */}
+          <div className="space-y-6 lg:sticky lg:top-6">
             <QuickActions />
           </div>
         </div>
-        
+
         {/* Active Listings - full width */}
-        <div className="space-y-6">
+        <div className="space-y-6 mt-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-text-primary">Active Listings</h2>
-            <button 
+            <button
               onClick={() => navigate('/property-create-edit')}
               className="btn-primary flex items-center px-4 py-2 rounded-md"
             >
@@ -167,10 +167,11 @@ const AgentDashboard = () => {
               Add Listing
             </button>
           </div>
-          
+
           <ActiveListings listings={listings || []} />
         </div>
       </div>
+
     </div>
     </>
   );
