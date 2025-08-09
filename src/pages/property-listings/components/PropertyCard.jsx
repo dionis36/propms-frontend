@@ -5,22 +5,21 @@ import Image from '../../../components/AppImage';
 import StatusBadge from '../../../components/StatusBadge';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
-import { saveFavorite, removeFavorite } from '../../../services/api';
+import { useFavorites } from '../../../contexts/FavoritesContext';
 import UserAvatar from '../../../components/ui/UserAvatar'; // Adjust the path as per your project structure
 
 
 const PropertyCard = ({ 
   property, 
   variant = 'card', 
-  onSave, 
   isHighlighted = false 
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(null);
-  const [isSaved, setIsSaved] = useState(property?.isSaved || false); // Local state for toggle
   const { showToast } = useToast();
   const { accessToken, user } = useAuth();
+  const { isPropertySaved, handleToggleFavorite } = useFavorites();
   const agentFullName = property.agent.name;
   const nameParts = agentFullName.split(' ');
   const firstName = nameParts[0];
@@ -68,36 +67,7 @@ const PropertyCard = ({
   const handleSave = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // 1. Not logged in
-    if (!user || !accessToken) {
-      showToast('Login to save favorites.', 'error');
-      return;
-    }
-
-    // 2. Logged in, but not a tenant
-    if (user && user.role !== 'TENANT') {
-      showToast('Only tenants can save favorites.', 'error');
-      return;
-    }
-
-    try {
-      if (!isSaved) {
-        await saveFavorite(property.id, accessToken);
-        setIsSaved(true); // Update local state
-        showToast('Property saved to favorites!', 'success');
-      } else {
-        await removeFavorite(property.id, accessToken);
-        setIsSaved(false); // Update local state
-        showToast('Removed from favorites.', 'info');
-      }
-
-      // Optional: toggle state in parent
-      onSave?.(property.id, !isSaved);
-    } catch (error) {
-      console.error('Favorite error:', error);
-      showToast(error.message || 'Failed to update favorite.', 'error');
-    }
+    await handleToggleFavorite(property.id);
   };
 
   const handleImageNavigation = (direction, e) => {
@@ -177,14 +147,14 @@ const PropertyCard = ({
                 onClick={handleSave}
                 className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center
                            transition-all duration-200 ease-out ${
-                  isSaved
+                  isPropertySaved(property.id)
                     ? 'bg-error text-white' :'bg-surface/90 text-text-secondary hover:bg-surface hover:text-error'
                 }`}
               >
                 <Icon 
                   name="Heart" 
                   size={16} 
-                  fill={isSaved ? "currentColor" : "none"} 
+                  fill={isPropertySaved(property.id) ? "currentColor" : "none"} 
                 />
               </button>
             </div>
@@ -339,14 +309,14 @@ const PropertyCard = ({
           onClick={handleSave}
           className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center
                      transition-all duration-200 ease-out ${
-            isSaved
+            isPropertySaved(property.id)
               ? 'bg-error text-white' :'bg-surface/90 text-text-secondary hover:bg-surface hover:text-error'
           }`}
         >
           <Icon 
             name="Heart" 
             size={18} 
-            fill={isSaved ? "currentColor" : "none"} 
+            fill={isPropertySaved(property.id) ? "currentColor" : "none"} 
           />
         </button>
 

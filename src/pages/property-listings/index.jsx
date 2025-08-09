@@ -360,11 +360,11 @@ const PropertyListings = () => {
   }, [properties, formatListings, applyFilters, currentPage, itemsPerPage, debouncedSearchParams, totalResults, loading]);
 
   // Reset page when debounced search params change (not immediate params)
-  useEffect(() => {
-    if (!isInitialMount.current) {
-      setCurrentPage(1);
-    }
-  }, [debouncedSearchParams]);
+  // useEffect(() => {
+  //   if (!isInitialMount.current) {
+  //     setCurrentPage(1);
+  //   }
+  // }, [debouncedSearchParams]);
 
   // Mark initial mount as complete
   useEffect(() => {
@@ -425,25 +425,26 @@ const PropertyListings = () => {
 
   // 🎯 DEBOUNCED FILTER CHANGE - This now updates searchParams immediately for UI responsiveness
   // but the actual API call is debounced via debouncedSearchParams
-  const handleFilterChange = useCallback((filters) => {
+const handleFilterChange = useCallback((filters) => {
     const newSearchParams = new URLSearchParams();
-    
+
     Object.entries(filters).forEach(([key, value]) => {
-      if (key === 'amenities') {
-        if (Array.isArray(value) && value.length > 0) {
-          newSearchParams.set(key, JSON.stringify(value));
+        if (key === 'amenities') {
+            if (Array.isArray(value) && value.length > 0) {
+                newSearchParams.set(key, JSON.stringify(value));
+            }
+        } else if (value && value !== '' && value !== 'all') {
+            newSearchParams.set(key, value);
         }
-      } else if (value && value !== '' && value !== 'all') {
-        newSearchParams.set(key, value);
-      }
     });
-    
-    // Update URL immediately for UI responsiveness
+
+    // Reset page to 1 when filters change
+    setCurrentPage(1); 
     setSearchParams(newSearchParams);
     setSearchKeyword(filters.query || '');
-    
+
     console.log('🎯 Filter change triggered, debounced API call will follow...');
-  }, [setSearchParams]);
+}, [setSearchParams]);
 
   // Handle property save/unsave
   const handlePropertySave = (propertyId, isSaved) => {
@@ -1007,3 +1008,4 @@ const PropertyListings = () => {
 };
 
 export default PropertyListings;
+

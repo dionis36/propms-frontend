@@ -1,23 +1,21 @@
 // src/pages/property-details/components/PropertyOverview.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import Icon from '../../../components/AppIcon';
 import Image from '../../../components/AppImage';
 import StatusBadge from '../../../components/StatusBadge'; // Adjust path as needed
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
-import { saveFavorite, removeFavorite } from '../../../services/api';
+import { useFavorites } from '../../../contexts/FavoritesContext';
 
 
 const PropertyOverview = ({ 
   property, 
-  isSaved: initialIsSaved, 
-  onSave, 
   onShare, 
   onContact 
 }) => {
-  const [isSaved, setIsSaved] = useState(initialIsSaved || false); // Local state for toggle
   const { showToast } = useToast();
   const { accessToken, user } = useAuth();
+  const { isPropertySaved, handleToggleFavorite } = useFavorites();
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
@@ -33,35 +31,7 @@ const PropertyOverview = ({
   };
 
   const handleSave = async () => {
-    // 1. Not logged in
-    if (!user || !accessToken) {
-      showToast('Login to save favorites.', 'error');
-      return;
-    }
-
-    // 2. Logged in, but not a tenant
-    if (user && user.role !== 'TENANT') {
-      showToast('Only tenants can save favorites.', 'error');
-      return;
-    }
-
-    try {
-      if (!isSaved) {
-        await saveFavorite(property.id, accessToken);
-        setIsSaved(true); // Update local state
-        showToast('Property saved to favorites!', 'success');
-      } else {
-        await removeFavorite(property.id, accessToken);
-        setIsSaved(false); // Update local state
-        showToast('Removed from favorites.', 'info');
-      }
-
-      // Optional: call parent callback
-      onSave?.(property.id, !isSaved);
-    } catch (error) {
-      console.error('Favorite error:', error);
-      showToast(error.message || 'Failed to update favorite.', 'error');
-    }
+    await handleToggleFavorite(property.id);
   };
 
   return (
@@ -97,12 +67,12 @@ const PropertyOverview = ({
           <button
             onClick={handleSave}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all duration-200 ${
-              isSaved 
+              isPropertySaved(property.id) 
                 ? 'bg-error text-white' :'bg-secondary-100 text-text-secondary hover:bg-error hover:text-white'
             }`}
           >
-            <Icon name="Heart" size={18} fill={isSaved ? "currentColor" : "none"} />
-            <span>{isSaved ? 'Saved' : 'Save'}</span>
+            <Icon name="Heart" size={18} fill={isPropertySaved(property.id) ? "currentColor" : "none"} />
+            <span>{isPropertySaved(property.id) ? 'Saved' : 'Save'}</span>
           </button>
           
           <button

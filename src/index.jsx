@@ -5,6 +5,7 @@ import './styles/tailwind.css';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from 'contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext'; // ✅ adjust path as needed
+import { FavoritesProvider } from './contexts/FavoritesContext'; 
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
@@ -13,7 +14,9 @@ root.render(
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider> {/* ✅ Wrap App here */}
-          <App />
+          <FavoritesProvider>
+            <App />
+          </FavoritesProvider>
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>

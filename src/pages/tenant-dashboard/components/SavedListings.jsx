@@ -5,6 +5,7 @@ import EmptyState from './EmptyState';
 import { removeFavorite } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
+import { useFavorites } from '../../../contexts/FavoritesContext';
 import { createPortal } from 'react-dom';
 import StatusBadge from '../../../components/StatusBadge';
 
@@ -25,6 +26,7 @@ export default function SavedListings({
   const [propertyToDelete, setPropertyToDelete] = useState(null);
   const { showToast } = useToast();  
   const { accessToken } = useAuth();
+  const { handleToggleFavorite } = useFavorites();
   const navigate = useNavigate();
   const deleteModalRef = useRef();
 
@@ -39,12 +41,13 @@ export default function SavedListings({
 
     try {
       setRemovingId(propertyToDelete.propertyId);
-      await removeFavorite(propertyToDelete.propertyId, accessToken);
       
-      // Call the parent callback to update the shared state
+      // Update the FavoritesContext first
+      await handleToggleFavorite(propertyToDelete.propertyId);
+      
+      // Call the parent callback to update the local state
       onRemoveSavedListing(propertyToDelete.propertyId);
       
-      showToast("Property removed from saved list", "info");
       setShowDeleteModal(false);
       setPropertyToDelete(null);
     } catch (error) {
