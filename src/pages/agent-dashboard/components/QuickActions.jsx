@@ -81,10 +81,6 @@ export default function QuickActions() {
               <span className="font-medium text-base text-text-primary-active">
                 {action.title}
               </span>
-              {/* Description, visible only on larger screens */}
-              {/* <p className="text-sm text-text-secondary mt-1 hidden sm:block">
-                {action.description}
-              </p> */}
             </a>
           ))}
         </div>

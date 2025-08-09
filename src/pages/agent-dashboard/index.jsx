@@ -131,48 +131,35 @@ const AgentDashboard = () => {
   return (
     <>
     {helmet}
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto py-6 max-w-7xl">
       <Header />
-      <div className="h-16 lg:h-18"></div>
 
-      <div className="container mx-auto px-4 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
-          {/* Left Column */}
-          <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-6">
-            <WelcomeBanner
-              user={user}
-              name={user?.first_name}
-              vacantListings={metrics.vacantListings}
-            />
-            <PerformanceMetrics metrics={metrics} />
+        <div className="pt-16 lg:pt-18 container mx-auto px-4 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
+            {/* Left Column */}
+            <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-6">
+              <WelcomeBanner
+                user={user}
+                name={user?.first_name}
+                vacantListings={metrics.vacantListings}
+              />
+              <PerformanceMetrics metrics={metrics} />
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-6 lg:sticky lg:top-6">
+              <QuickActions />
+            </div>
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-6 lg:sticky lg:top-6">
-            <QuickActions />
-          </div>
-        </div>
+          {/* Active Listings - full width */}
+          <div className="space-y-6 mt-6">
 
-        {/* Active Listings - full width */}
-        <div className="space-y-6 mt-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-text-primary">Active Listings</h2>
-            <button
-              onClick={() => navigate('/property-create-edit')}
-              className="btn-primary flex items-center px-4 py-2 rounded-md"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add Listing
-            </button>
+            <ActiveListings listings={listings || []} />
           </div>
-
-          <ActiveListings listings={listings || []} />
         </div>
       </div>
 
-    </div>
     </>
   );
 };

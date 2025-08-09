@@ -203,7 +203,8 @@ export default function SavedListings({
           </div>
           <button 
             onClick={() => navigate('/property-listings')}
-            className="btn-secondary text-sm px-4 py-2 rounded-md w-full sm:w-auto"
+            // className="btn-secondary text-sm px-4 py-2 rounded-md w-full sm:w-auto"
+            className="px-4 py-2 rounded-md w-full sm:w-auto text-white bg-primary"
           >
             Browse More
           </button>

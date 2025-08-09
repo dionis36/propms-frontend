@@ -656,6 +656,7 @@ const AuthForm = ({ mode, onForgotPassword }) => {
         fullWidth
         loading={loading}
         disabled={loading}
+        className="text-white"
       >
         {mode === 'login' ? 'Sign In' : 'Create Account'}
       </Button>

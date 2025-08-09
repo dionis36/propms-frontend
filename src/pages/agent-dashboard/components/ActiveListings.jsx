@@ -276,9 +276,9 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
           </div>
           <button 
             onClick={() => navigate('/property-create-edit')}
-            className="btn-primary text-sm px-4 py-2 rounded-md w-full sm:w-auto"
+            className="px-4 py-2 rounded-md w-full sm:w-auto text-white bg-primary"
           >
-            Add New Property
+           Add New Property
           </button>
         </div>
 

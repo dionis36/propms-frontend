@@ -109,9 +109,9 @@ export default function DashboardOverview({ user, savedListings, loading }) {
         {stats.map((stat, index) => (
           <div
             key={index}
-            className={`${stat.bgColor} border border-border rounded-xl p-4`}
+            className={`${stat.bgColor} border border-border rounded-xl p-4 text-center`}
           >
-            <div className="flex items-center gap-2 text-lg text-text-secondary">
+            <div className="flex items-center gap-2 text-lg text-text-secondary justify-center">
               {stat.icon}
               <span className="truncate">{stat.title}</span>
             </div>
