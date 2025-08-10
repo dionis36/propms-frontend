@@ -225,6 +225,8 @@ const renderInteractiveMap = () => {
               <p className="text-text-secondary ml-6 whitespace-pre-line">
                 {property.location_notes}
               </p>
+              <p>LAT: {property.latitude}</p>
+              <p>LNG: {property.longitude}</p>
             </div>
           )}
 

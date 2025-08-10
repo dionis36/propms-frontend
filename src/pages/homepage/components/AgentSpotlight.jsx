@@ -176,7 +176,7 @@ const AgentSpotlight = () => {
                 className="inline-flex items-center text-primary font-medium
                      transition-colors duration-200"
               >
-                View all agents
+                View all Agents
                 <Icon name="ArrowRight" size={18} className="ml-2" />
               </Link>
             </div>

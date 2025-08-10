@@ -96,6 +96,7 @@ const PropertyListings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState('list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
   const [searchKeyword, setSearchKeyword] = useState(searchParams.get('query') || '');
@@ -103,7 +104,7 @@ const PropertyListings = () => {
 
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(12); // Increased for grid layout
 
   const isInitialMount = useRef(true);
 
@@ -345,26 +346,16 @@ const PropertyListings = () => {
     if (properties && properties.length > 0) {
       console.log('🔄 Processing API data...');
       validateApiResponse(properties);
-      
       // 💾 CACHE THE RESPONSE (simulating cache behavior for consistency)
       propertyCache.set(currentPage, itemsPerPage, debouncedSearchParams, { results: properties, count: totalResults });
-      
       // Format and apply filters
       const formatted = formatListings(properties);
       applyFilters(formatted);
-      
       console.log(`✅ Loaded page ${currentPage} with ${formatted.length} properties`);
     } else if (properties && properties.length === 0 && !loading) {
       setFilteredProperties([]);
     }
   }, [properties, formatListings, applyFilters, currentPage, itemsPerPage, debouncedSearchParams, totalResults, loading]);
-
-  // Reset page when debounced search params change (not immediate params)
-  // useEffect(() => {
-  //   if (!isInitialMount.current) {
-  //     setCurrentPage(1);
-  //   }
-  // }, [debouncedSearchParams]);
 
   // Mark initial mount as complete
   useEffect(() => {
@@ -398,7 +389,6 @@ const PropertyListings = () => {
   // Sort properties
   const sortProperties = (propertiesToSort, sortOption) => {
     const sorted = [...propertiesToSort];
-    
     switch (sortOption) {
       case 'price-low':
         return sorted.sort((a, b) => a.price - b.price);
@@ -425,415 +415,181 @@ const PropertyListings = () => {
 
   // 🎯 DEBOUNCED FILTER CHANGE - This now updates searchParams immediately for UI responsiveness
   // but the actual API call is debounced via debouncedSearchParams
-const handleFilterChange = useCallback((filters) => {
-    const newSearchParams = new URLSearchParams();
+  const handleFilterChange = (newFilters) => {
+    console.log('📝 Handling filter change:', newFilters);
+    const newSearchParams = new URLSearchParams(searchParams);
 
-    Object.entries(filters).forEach(([key, value]) => {
-        if (key === 'amenities') {
-            if (Array.isArray(value) && value.length > 0) {
-                newSearchParams.set(key, JSON.stringify(value));
-            }
-        } else if (value && value !== '' && value !== 'all') {
-            newSearchParams.set(key, value);
-        }
+    // Update query params with new filters
+    Object.keys(newFilters).forEach(key => {
+      const value = newFilters[key];
+      if (Array.isArray(value)) {
+        newSearchParams.set(key, JSON.stringify(value));
+      } else if (value) {
+        newSearchParams.set(key, value);
+      } else {
+        newSearchParams.delete(key);
+      }
     });
 
-    // Reset page to 1 when filters change
-    setCurrentPage(1); 
     setSearchParams(newSearchParams);
-    setSearchKeyword(filters.query || '');
-
-    console.log('🎯 Filter change triggered, debounced API call will follow...');
-}, [setSearchParams]);
-
-  // Handle property save/unsave
-  const handlePropertySave = (propertyId, isSaved) => {
-    setFilteredProperties(prev => prev.map(property =>
-      property.id === propertyId ? { ...property, isSaved } : property
-    ));
+  };
+  
+  // Handlers for UI interaction
+  const handleToggleMapView = () => {
+    setViewMode(prevMode => prevMode === 'list' ? 'map' : 'list');
   };
 
-  // Handle keyword search
-  const handleKeywordSearch = (e) => {
-    if (e.key === 'Enter' || e.type === 'click') {
-      handleFilterChange({ ...Object.fromEntries(searchParams), query: searchKeyword });
+  const handleOpenFilter = () => {
+    setIsFilterOpen(true);
+  };
+
+  const handleCloseFilter = () => {
+    setIsFilterOpen(false);
+  };
+
+  const handleCardHover = useCallback((property) => {
+    setSelectedProperty(property);
+  }, []);
+
+  const handleCardLeave = useCallback(() => {
+    setSelectedProperty(null);
+  }, []);
+  
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Scroll to the top of the listing section on desktop
+    if (desktopListRef.current && window.innerWidth >= 1024) {
+      desktopListRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
-  // 🎯 DEBOUNCED REAL-TIME SEARCH - Updates UI immediately, API call is debounced
-  const handleSearchInputChange = useCallback((value) => {
-    setSearchKeyword(value);
-    handleFilterChange({ ...Object.fromEntries(searchParams), query: value });
-  }, [searchParams, handleFilterChange]);
-
-  // Handle page change
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    
-    if (desktopListRef.current) {
-      desktopListRef.current.scrollTop = 0;
-    }
-    window.scrollTo(0, 0);
+  // Loading shimmer grid items
+  const ShimmerGrid = () => {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+        {[...Array(itemsPerPage)].map((_, index) => (
+          <div key={index} className="bg-surface-secondary p-4 rounded-xl shadow-sm transition-all duration-300">
+            <div className="h-48 bg-surface-primary rounded-lg mb-4 shimmer-bg"></div>
+            <div className="h-6 bg-surface-primary rounded-md mb-2 shimmer-bg w-3/4"></div>
+            <div className="h-4 bg-surface-primary rounded-md shimmer-bg w-1/2"></div>
+            <div className="mt-4 flex items-center justify-between">
+              <div className="h-4 w-16 bg-surface-primary rounded-md shimmer-bg"></div>
+              <div className="h-4 w-12 bg-surface-primary rounded-md shimmer-bg"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
-  // Get breadcrumbs
-  const getBreadcrumbs = () => {
-    const breadcrumbs = [
-      { label: 'Home', path: '/homepage' },
-      { label: 'Properties', path: '/property-listings' }
-    ];
-
-    const location = searchParams.get('location');
-    const propertyType = searchParams.get('propertyType');
-
-    if (location) {
-      breadcrumbs.push({ label: location, path: null });
-    }
-
-    if (propertyType && propertyType !== 'all') {
-      breadcrumbs.push({ 
-        label: propertyType.charAt(0).toUpperCase() + propertyType.slice(1), 
-        path: null 
-      });
-    }
-
-    return breadcrumbs;
-  };
-
-  // 🧪 CACHE MANAGEMENT UTILITIES FOR DEBUGGING
-  const clearCache = () => {
-    propertyCache.clear();
-    console.log('💾 Cache manually cleared');
-  };
-
-  const getCacheStats = () => {
-    console.log('💾 Cache Stats:', {
-      size: propertyCache.size(),
-      maxSize: propertyCache.maxSize
-    });
-  };
-
-  // Rendering debugging
-  console.log('🎨 Rendering with state:', {
-    loading,
-    error,
-    propertiesCount: properties.length,
-    filteredPropertiesCount: filteredProperties.length,
-    currentPropertiesCount: currentProperties.length,
-    viewMode,
-    currentPage,
-    totalPages,
-    cacheSize: propertyCache.size(),
-    debouncedSearchParams: Object.fromEntries(debouncedSearchParams)
-  });
-
-  const helmet = (
-    <Helmet>
-      <title>Property Listings | EstateHub</title>
-      <meta name="description" content="Find your dream property with EstateHub." />
-    </Helmet>
+  // No results state
+  const NoResults = () => (
+    <div className="flex flex-col items-center justify-center p-8 text-center text-text-secondary h-[40vh]">
+      <Icon name="SearchX" size={48} className="mb-4" />
+      <h3 className="text-xl font-semibold text-text-primary">No Properties Found</h3>
+      <p className="mt-2 text-md max-w-sm">
+        We couldn't find any properties matching your search criteria.
+        Try adjusting your filters or search terms.
+      </p>
+    </div>
   );
 
   return (
     <>
-      {helmet}
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        
-        <main className="flex-grow pt-16 lg:pt-20">
-          {/* Search Results Header */}
-          <div className="bg-surface border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-xl md:text-2xl font-bold text-text-primary">
-                    Properties for Sale
-                  </h1>
-                  <div className="flex items-center flex-wrap gap-2 mt-1">
-                    <p className="text-sm md:text-base text-text-secondary">
-                      {loading ? 'Loading...' : 
-                        `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${
-                          Math.min(currentPage * itemsPerPage, totalResults)
-                        } of ${totalResults} properties`}
-                    </p>
-                    {/* Cache status indicator for debugging */}
-                    <span className="text-xs text-text-secondary bg-secondary-100 px-2 py-1 rounded-full">
-                      💾 Cache: {propertyCache.size()}/{propertyCache.maxSize}
-                    </span>
-                  </div>
-                </div>
+      <Helmet>
+        <title>Property Listings - Your Real Estate Platform</title>
+        <meta name="description" content="Browse and filter real estate properties for sale or rent. Find your dream home with our advanced search tools." />
+      </Helmet>
+      <Header onOpenFilter={handleOpenFilter} />
 
-                {/* Mobile Controls */}
-                <div className="flex md:hidden items-center justify-between gap-2 w-full">
-                  {/* Mobile Search Input */}
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full"
-                      placeholder="Search..."
-                      value={searchKeyword}
-                      onChange={(e) => handleSearchInputChange(e.target.value)}
-                      onKeyDown={handleKeywordSearch}
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Icon name="Search" size={16} className="text-text-secondary" />
-                    </div>
-                  </div>
-
-                  {/* Mobile Filter Button */}
-                  <button
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className="flex items-center justify-center h-11 w-11 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-200"
-                  >
-                    <Icon name="SlidersHorizontal" size={18} />
-                  </button>
-                </div>
-
-                {/* Desktop Controls */}
-                <div className="hidden md:flex items-center gap-3">
-                  {/* Keyword Search */}
-                  <div className="relative">
-                    <input
-                      type="text"
-                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64"
-                      placeholder="Search properties..."
-                      value={searchKeyword}
-                      onChange={(e) => handleSearchInputChange(e.target.value)}
-                      onKeyDown={handleKeywordSearch}
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Icon name="Search" size={16} className="text-text-secondary" />
-                    </div>
-                  </div>
-
-                  {/* Sort Dropdown */}
-                  <SortDropdown value={sortBy} onChange={handleSortChange} />
-
-                  {/* Filter Toggle */}
-                  <button
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className="flex items-center space-x-2 px-4 py-2.5 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-200"
-                  >
-                    <Icon name="SlidersHorizontal" size={16} />
-                    <span>Filters</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+      <main className="container mx-auto px-4 mt-6 lg:mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-text-primary">
+            Property Listings
+          </h1>
+          <div className="flex items-center space-x-2">
+            <SortDropdown sortBy={sortBy} onSortChange={handleSortChange} />
+            <button
+              onClick={handleToggleMapView}
+              className="p-2 bg-surface-secondary text-text-secondary rounded-lg hover:bg-surface-tertiary transition-colors duration-200"
+              aria-label={viewMode === 'list' ? 'Switch to map view' : 'Switch to list view'}
+            >
+              <Icon name={viewMode === 'list' ? 'Map' : 'LayoutGrid'} size={20} />
+            </button>
           </div>
+        </div>
 
-          {/* Main Content Area */}
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Filter Panel */}
+        {/* The main content area with filter panel and listings */}
+        <div className="flex flex-col lg:flex-row lg:gap-6 relative">
+          
+          {/* Mobile Filter Panel */}
+          {isFilterOpen && (
+            <FilterPanel
+              isOpen={isFilterOpen}
+              onClose={handleCloseFilter}
+              onFilterChange={handleFilterChange}
+              initialFilters={Object.fromEntries(searchParams)}
+            />
+          )}
+
+          {/* Desktop Filter Panel */}
+          {!isFilterOpen && !isFilterPanelCollapsed && (
+            <div className="hidden lg:block lg:w-80 flex-shrink-0">
               <FilterPanel
-                isOpen={isFilterOpen}
-                onClose={() => setIsFilterOpen(false)}
+                isOpen={true}
+                onClose={() => setIsFilterPanelCollapsed(true)} // Example: Can collapse
                 onFilterChange={handleFilterChange}
-                initialFilters={{
-                  query: searchParams.get('query') || '',
-                  location: searchParams.get('location') || '',
-                  propertyType: searchParams.get('propertyType') || '',
-                  minPrice: searchParams.get('minPrice') || '',
-                  maxPrice: searchParams.get('maxPrice') || '',
-                  bedrooms: searchParams.get('bedrooms') || '',
-                  bathrooms: searchParams.get('bathrooms') || '',
-                  amenities: searchParams.get('amenities') ? JSON.parse(searchParams.get('amenities')) : []
-                }}
+                initialFilters={Object.fromEntries(searchParams)}
               />
+            </div>
+          )}
 
-              {/* Content Area */}
-              <div className="flex-1">
-                {/* View Toggle and Sort Controls */}
-                <div className="flex items-center justify-between mb-6">
-                  {/* View Toggle */}
-                  <div className="flex bg-secondary-100 rounded-lg p-1">
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
-                        viewMode === 'list' 
-                          ? 'bg-surface text-text-primary shadow-sm' 
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      <Icon name="List" size={16} className="mr-1.5" />
-                      <span>List</span>
-                    </button>
-                    <button
-                      onClick={() => setViewMode('map')}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
-                        viewMode === 'map' 
-                          ? 'bg-surface text-text-primary shadow-sm' 
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      <Icon name="Map" size={16} className="mr-1.5" />
-                      <span>Map</span>
-                    </button>
-                  </div>
-
-                  {/* Results Count */}
-                  <div className="text-sm text-text-secondary hidden sm:block">
-                    {totalResults} properties found
-                  </div>
-                </div>
-
-                {/* Desktop Split View */}
-                {viewMode === 'list' ? (
-                  <div className="grid gap-6">
-                    {loading ? (
-                      <div className="grid grid-cols-1 gap-6">
-                        {[...Array(6)].map((_, index) => (
-                          <div key={index} className="card p-5 rounded-xl">
-                            <div className="animate-pulse flex space-x-4">
-                              <div className="w-32 h-32 bg-secondary-200 rounded-xl"></div>
-                              <div className="flex-1 space-y-3">
-                                <div className="h-4 bg-secondary-200 rounded w-3/4"></div>
-                                <div className="h-3 bg-secondary-200 rounded w-1/2"></div>
-                                <div className="h-3 bg-secondary-200 rounded w-2/3"></div>
-                                <div className="flex space-x-2">
-                                  <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                  <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                  <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-1 gap-6">
-                          {currentProperties.length > 0 ? (
-                            currentProperties.map((property) => (
-                              <PropertyCard
-                                key={property.id}
-                                property={property}
-                                variant="list"
-                                onSave={handlePropertySave}
-                              />
-                            ))
-                          ) : (
-                            <div className="text-center py-12 rounded-xl bg-surface border border-border">
-                              <Icon name="Search" size={48} className="text-secondary mx-auto mb-4" />
-                              <h3 className="text-lg font-semibold text-text-primary mb-2">
-                                No properties found
-                              </h3>
-                              <p className="text-text-secondary">
-                                Try adjusting your search criteria or filters
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Pagination Controls */}
-                        {filteredProperties.length > 0 && totalPages > 1 && (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 mt-4 border-t border-border">
-                            <div className="text-sm text-text-secondary">
-                              Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handlePageChange(1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
-                                }`}
-                              >
-                                First
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
-                                }`}
-                              >
-                                Previous
-                              </button>
-                              
-                              <div className="flex gap-1">
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                  let pageNumber;
-                                  if (totalPages <= 5) {
-                                    pageNumber = i + 1;
-                                  } else if (currentPage <= 3) {
-                                    pageNumber = i + 1;
-                                  } else if (currentPage >= totalPages - 2) {
-                                    pageNumber = totalPages - 4 + i;
-                                  } else {
-                                    pageNumber = currentPage - 2 + i;
-                                  }
-                                  
-                                  return (
-                                    <button
-                                      key={pageNumber}
-                                      onClick={() => handlePageChange(pageNumber)}
-                                      className={`w-10 h-10 rounded-lg text-sm font-medium flex items-center justify-center ${
-                                        currentPage === pageNumber
-                                          ? 'bg-primary text-white shadow-sm'
-                                          : 'text-text-primary hover:bg-secondary-100'
-                                      }`}
-                                    >
-                                      {pageNumber}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
-                                }`}
-                              >
-                                Next
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(totalPages)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
-                                }`}
-                              >
-                                Last
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="h-[70vh] rounded-xl overflow-hidden border border-border">
-                    <MapView
-                      properties={filteredProperties}
-                      selectedProperty={selectedProperty}
-                      onPropertySelect={setSelectedProperty}
-                    />
+          {/* Main Listings/Map Content */}
+          <div className="flex-1 min-w-0" ref={desktopListRef}>
+            {viewMode === 'list' ? (
+              <>
+                {loading && <ShimmerGrid />}
+                {error && <div className="text-center text-error p-4">{error}</div>}
+                {!loading && !error && filteredProperties.length === 0 && <NoResults />}
+                
+                {!loading && filteredProperties.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredProperties.map(property => (
+                      <PropertyCard
+                        key={property.id}
+                        property={property}
+                        onMouseEnter={() => handleCardHover(property)}
+                        onMouseLeave={handleCardLeave}
+                      />
+                    ))}
                   </div>
                 )}
-              </div>
-            </div>
+
+                {/* Pagination (placeholder) */}
+                {/*
+                {!loading && filteredProperties.length > 0 && (
+                  <div className="flex justify-center mt-8">
+                    <button className="p-2 mx-1 border rounded">1</button>
+                    <button className="p-2 mx-1 border rounded">2</button>
+                    <button className="p-2 mx-1 border rounded">3</button>
+                  </div>
+                )}
+                */}
+              </>
+            ) : (
+              <MapView 
+                properties={filteredProperties}
+                selectedProperty={selectedProperty}
+              />
+            )}
           </div>
-        </main>
-        
-        <Footer />
-      </div>
+        </div>
+      </main>
+
+      <Footer />
     </>
   );
 };
 
 export default PropertyListings;
+

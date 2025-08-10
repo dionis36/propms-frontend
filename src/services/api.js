@@ -101,7 +101,7 @@ export const registerUser = async (userData) => {
 // Property Related API Calls
 // ============================================================================
 
-export const getAllProperties = async ({ page = 1, limit = 10, filters = {} }) => {
+export const getAllProperties = async ({ page = 1, limit, filters = {} }) => {
   const params = { page, page_size: limit, ...filters };
 
   const response = await axios.get(`${API_BASE}/api/properties/`, {

@@ -96,6 +96,7 @@ const PropertyListings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState('list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
   const [searchKeyword, setSearchKeyword] = useState(searchParams.get('query') || '');
@@ -103,7 +104,7 @@ const PropertyListings = () => {
 
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(12); // Increased for grid layout
 
   const isInitialMount = useRef(true);
 
@@ -359,13 +360,6 @@ const PropertyListings = () => {
     }
   }, [properties, formatListings, applyFilters, currentPage, itemsPerPage, debouncedSearchParams, totalResults, loading]);
 
-  // Reset page when debounced search params change (not immediate params)
-  // useEffect(() => {
-  //   if (!isInitialMount.current) {
-  //     setCurrentPage(1);
-  //   }
-  // }, [debouncedSearchParams]);
-
   // Mark initial mount as complete
   useEffect(() => {
     if (isInitialMount.current) {
@@ -425,17 +419,17 @@ const PropertyListings = () => {
 
   // 🎯 DEBOUNCED FILTER CHANGE - This now updates searchParams immediately for UI responsiveness
   // but the actual API call is debounced via debouncedSearchParams
-const handleFilterChange = useCallback((filters) => {
+  const handleFilterChange = useCallback((filters) => {
     const newSearchParams = new URLSearchParams();
 
     Object.entries(filters).forEach(([key, value]) => {
-        if (key === 'amenities') {
-            if (Array.isArray(value) && value.length > 0) {
-                newSearchParams.set(key, JSON.stringify(value));
-            }
-        } else if (value && value !== '' && value !== 'all') {
-            newSearchParams.set(key, value);
+      if (key === 'amenities') {
+        if (Array.isArray(value) && value.length > 0) {
+          newSearchParams.set(key, JSON.stringify(value));
         }
+      } else if (value && value !== '' && value !== 'all') {
+        newSearchParams.set(key, value);
+      }
     });
 
     // Reset page to 1 when filters change
@@ -444,7 +438,7 @@ const handleFilterChange = useCallback((filters) => {
     setSearchKeyword(filters.query || '');
 
     console.log('🎯 Filter change triggered, debounced API call will follow...');
-}, [setSearchParams]);
+  }, [setSearchParams]);
 
   // Handle property save/unsave
   const handlePropertySave = (propertyId, isSaved) => {
@@ -471,9 +465,16 @@ const handleFilterChange = useCallback((filters) => {
     setCurrentPage(pageNumber);
     
     if (desktopListRef.current) {
-      desktopListRef.current.scrollTop = 0;
+      desktopListRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
     }
-    window.scrollTo(0, 0);
   };
 
   // Get breadcrumbs
@@ -569,7 +570,7 @@ const handleFilterChange = useCallback((filters) => {
                   <div className="relative flex-1">
                     <input
                       type="text"
-                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full"
+                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full transition-all duration-200"
                       placeholder="Search..."
                       value={searchKeyword}
                       onChange={(e) => handleSearchInputChange(e.target.value)}
@@ -583,7 +584,7 @@ const handleFilterChange = useCallback((filters) => {
                   {/* Mobile Filter Button */}
                   <button
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className="flex items-center justify-center h-11 w-11 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-200"
+                    className="flex items-center justify-center h-11 w-11 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-300 transform hover:scale-105 active:scale-95"
                   >
                     <Icon name="SlidersHorizontal" size={18} />
                   </button>
@@ -595,7 +596,7 @@ const handleFilterChange = useCallback((filters) => {
                   <div className="relative">
                     <input
                       type="text"
-                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64"
+                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64 transition-all duration-200"
                       placeholder="Search properties..."
                       value={searchKeyword}
                       onChange={(e) => handleSearchInputChange(e.target.value)}
@@ -612,7 +613,7 @@ const handleFilterChange = useCallback((filters) => {
                   {/* Filter Toggle */}
                   <button
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className="flex items-center space-x-2 px-4 py-2.5 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-200"
+                    className="flex items-center space-x-2 px-4 py-2.5 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-300 transform hover:scale-105 active:scale-95"
                   >
                     <Icon name="SlidersHorizontal" size={16} />
                     <span>Filters</span>
@@ -624,8 +625,20 @@ const handleFilterChange = useCallback((filters) => {
 
           {/* Main Content Area */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Filter Panel */}
+            <div className="flex gap-6 relative items-start">
+              {/* Desktop Filter Panel */}
+              {!isFilterOpen && !isFilterPanelCollapsed && (
+                <div className="hidden lg:block lg:w-80 flex-shrink-0">
+                  <FilterPanel
+                    isOpen={true}
+                    onClose={() => setIsFilterPanelCollapsed(true)} // Example: Can collapse
+                    onFilterChange={handleFilterChange}
+                    initialFilters={Object.fromEntries(searchParams)}
+                  />
+                </div>
+              )}
+
+              {/* Mobile Filter Panel */}
               <FilterPanel
                 isOpen={isFilterOpen}
                 onClose={() => setIsFilterOpen(false)}
@@ -640,62 +653,79 @@ const handleFilterChange = useCallback((filters) => {
                   bathrooms: searchParams.get('bathrooms') || '',
                   amenities: searchParams.get('amenities') ? JSON.parse(searchParams.get('amenities')) : []
                 }}
+                variant="mobile"
               />
 
               {/* Content Area */}
-              <div className="flex-1">
+              <div className={`
+                flex-1 min-w-0 transition-all duration-300 ease-in-out
+                ${isFilterPanelCollapsed ? 'max-w-full' : ''}
+              `}>
                 {/* View Toggle and Sort Controls */}
                 <div className="flex items-center justify-between mb-6">
-                  {/* View Toggle */}
-                  <div className="flex bg-secondary-100 rounded-lg p-1">
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
-                        viewMode === 'list' 
-                          ? 'bg-surface text-text-primary shadow-sm' 
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      <Icon name="List" size={16} className="mr-1.5" />
-                      <span>List</span>
-                    </button>
-                    <button
-                      onClick={() => setViewMode('map')}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
-                        viewMode === 'map' 
-                          ? 'bg-surface text-text-primary shadow-sm' 
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      <Icon name="Map" size={16} className="mr-1.5" />
-                      <span>Map</span>
-                    </button>
+                  {/* Left Side: Filter Button + View Toggle */}
+                  <div className="flex items-center gap-3">
+                    {/* Filter Toggle Button (when collapsed) */}
+                    {isFilterPanelCollapsed && (
+                      <button
+                        onClick={() => setIsFilterPanelCollapsed(false)}
+                        className="hidden lg:flex items-center space-x-2 px-4 py-2 bg-secondary-100 text-text-primary rounded-lg hover:bg-secondary-200 transition-all duration-300 transform hover:scale-105"
+                        title="Show filters"
+                      >
+                        <Icon name="SlidersHorizontal" size={16} />
+                        <span className="text-sm font-medium">Filters</span>
+                      </button>
+                    )}
+
+                    {/* View Toggle */}
+                    <div className="flex bg-secondary-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center transform ${
+                          viewMode === 'list' 
+                            ? 'bg-surface text-text-primary shadow-sm scale-105' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-secondary-50'
+                        }`}
+                      >
+                        <Icon name="Grid3X3" size={16} className="mr-1.5" />
+                        <span>Grid</span>
+                      </button>
+                      <button
+                        onClick={() => setViewMode('map')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center transform ${
+                          viewMode === 'map' 
+                            ? 'bg-surface text-text-primary shadow-sm scale-105' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-secondary-50'
+                        }`}
+                      >
+                        <Icon name="Map" size={16} className="mr-1.5" />
+                        <span>Map</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Results Count */}
                   <div className="text-sm text-text-secondary hidden sm:block">
-                    {totalResults} properties found
+                    <span className="animate-pulse">{totalResults}</span> properties found
                   </div>
                 </div>
 
-                {/* Desktop Split View */}
+                {/* Properties Grid/Map View */}
                 {viewMode === 'list' ? (
-                  <div className="grid gap-6">
+                  <div className="space-y-8">
                     {loading ? (
-                      <div className="grid grid-cols-1 gap-6">
-                        {[...Array(6)].map((_, index) => (
-                          <div key={index} className="card p-5 rounded-xl">
-                            <div className="animate-pulse flex space-x-4">
-                              <div className="w-32 h-32 bg-secondary-200 rounded-xl"></div>
-                              <div className="flex-1 space-y-3">
-                                <div className="h-4 bg-secondary-200 rounded w-3/4"></div>
-                                <div className="h-3 bg-secondary-200 rounded w-1/2"></div>
-                                <div className="h-3 bg-secondary-200 rounded w-2/3"></div>
-                                <div className="flex space-x-2">
-                                  <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                  <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                  <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                        {[...Array(12)].map((_, index) => (
+                          <div key={index} className="card p-0 rounded-xl overflow-hidden animate-pulse">
+                            <div className="w-full h-48 bg-secondary-200"></div>
+                            <div className="p-4 space-y-3">
+                              <div className="h-4 bg-secondary-200 rounded w-3/4"></div>
+                              <div className="h-3 bg-secondary-200 rounded w-1/2"></div>
+                              <div className="h-3 bg-secondary-200 rounded w-2/3"></div>
+                              <div className="flex space-x-2">
+                                <div className="h-3 bg-secondary-200 rounded w-16"></div>
+                                <div className="h-3 bg-secondary-200 rounded w-16"></div>
+                                <div className="h-3 bg-secondary-200 rounded w-16"></div>
                               </div>
                             </div>
                           </div>
@@ -703,62 +733,94 @@ const handleFilterChange = useCallback((filters) => {
                       </div>
                     ) : (
                       <>
-                        <div className="grid grid-cols-1 gap-6">
+                        {/* Properties Grid */}
+                        <div 
+                          ref={desktopListRef}
+                          className="grid gap-6 transition-all duration-300"
+                          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))' }}
+                        >
                           {currentProperties.length > 0 ? (
-                            currentProperties.map((property) => (
-                              <PropertyCard
+                            currentProperties.map((property, index) => (
+                              <div
                                 key={property.id}
-                                property={property}
-                                variant="list"
-                                onSave={handlePropertySave}
-                              />
+                                className="transform transition-all duration-300 hover:scale-105 hover:-translate-y-1"
+                                style={{
+                                  animationDelay: `${index * 50}ms`,
+                                  animation: 'fadeInUp 0.6s ease-out forwards'
+                                }}
+                                onMouseEnter={() => setSelectedProperty(property)}
+                                onMouseLeave={() => setSelectedProperty(null)}
+                              >
+                                <PropertyCard
+                                  property={property}
+                                  variant="card"
+                                  onSave={handlePropertySave}
+                                  isHighlighted={selectedProperty?.id === property.id}
+                                />
+                              </div>
                             ))
                           ) : (
-                            <div className="text-center py-12 rounded-xl bg-surface border border-border">
-                              <Icon name="Search" size={48} className="text-secondary mx-auto mb-4" />
-                              <h3 className="text-lg font-semibold text-text-primary mb-2">
-                                No properties found
-                              </h3>
-                              <p className="text-text-secondary">
-                                Try adjusting your search criteria or filters
-                              </p>
+                            <div className="col-span-full text-center py-16 animate-fadeIn">
+                              <div className="max-w-md mx-auto">
+                                <Icon name="Search" size={64} className="text-secondary mx-auto mb-6 animate-pulse" />
+                                <h3 className="text-xl font-semibold text-text-primary mb-3">
+                                  No properties found
+                                </h3>
+                                <p className="text-text-secondary mb-6">
+                                  Try adjusting your search criteria or filters to see more results
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    setSearchParams(new URLSearchParams());
+                                    setSearchKeyword('');
+                                  }}
+                                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-700 transition-all duration-300 transform hover:scale-105"
+                                >
+                                  Clear All Filters
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
 
-                        {/* Pagination Controls */}
+                        {/* Modern Pagination Controls */}
                         {filteredProperties.length > 0 && totalPages > 1 && (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 mt-4 border-t border-border">
-                            <div className="text-sm text-text-secondary">
-                              Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 mt-8 border-t border-border">
+                            <div className="text-sm text-text-secondary order-2 sm:order-1">
+                              Page <span className="font-medium text-primary">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
                             </div>
                             
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 order-1 sm:order-2">
+                              {/* First Page */}
                               <button
                                 onClick={() => handlePageChange(1)}
                                 disabled={currentPage === 1}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === 1 
                                     ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="First page"
                               >
-                                First
+                                <Icon name="ChevronsLeft" size={16} />
                               </button>
                               
+                              {/* Previous Page */}
                               <button
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={currentPage === 1}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === 1 
                                     ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="Previous page"
                               >
-                                Previous
+                                <Icon name="ChevronLeft" size={16} />
                               </button>
                               
-                              <div className="flex gap-1">
+                              {/* Page Numbers */}
+                              <div className="flex gap-1 mx-2">
                                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                                   let pageNumber;
                                   if (totalPages <= 5) {
@@ -775,10 +837,10 @@ const handleFilterChange = useCallback((filters) => {
                                     <button
                                       key={pageNumber}
                                       onClick={() => handlePageChange(pageNumber)}
-                                      className={`w-10 h-10 rounded-lg text-sm font-medium flex items-center justify-center ${
+                                      className={`w-10 h-10 rounded-lg text-sm font-medium flex items-center justify-center transition-all duration-300 transform ${
                                         currentPage === pageNumber
-                                          ? 'bg-primary text-white shadow-sm'
-                                          : 'text-text-primary hover:bg-secondary-100'
+                                          ? 'bg-primary text-white shadow-md scale-110'
+                                          : 'text-text-primary hover:bg-secondary-100 hover:scale-110'
                                       }`}
                                     >
                                       {pageNumber}
@@ -787,28 +849,32 @@ const handleFilterChange = useCallback((filters) => {
                                 })}
                               </div>
                               
+                              {/* Next Page */}
                               <button
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={currentPage === totalPages}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === totalPages 
                                     ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="Next page"
                               >
-                                Next
+                                <Icon name="ChevronRight" size={16} />
                               </button>
                               
+                              {/* Last Page */}
                               <button
                                 onClick={() => handlePageChange(totalPages)}
                                 disabled={currentPage === totalPages}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === totalPages 
                                     ? 'text-text-secondary cursor-not-allowed opacity-50' 
-                                    : 'text-text-primary hover:bg-secondary-100'
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="Last page"
                               >
-                                Last
+                                <Icon name="ChevronsRight" size={16} />
                               </button>
                             </div>
                           </div>
@@ -817,7 +883,7 @@ const handleFilterChange = useCallback((filters) => {
                     )}
                   </div>
                 ) : (
-                  <div className="h-[70vh] rounded-xl overflow-hidden border border-border">
+                  <div className="h-[70vh] rounded-xl overflow-hidden border border-border shadow-lg transition-all duration-500 transform">
                     <MapView
                       properties={filteredProperties}
                       selectedProperty={selectedProperty}
@@ -832,6 +898,126 @@ const handleFilterChange = useCallback((filters) => {
         
         <Footer />
       </div>
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .animate-fadeInUp {
+          animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        /* Custom scrollbar for desktop list */
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e0 transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #cbd5e0;
+          border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: #a0aec0;
+        }
+
+        /* Smooth transitions for all interactive elements */
+        .transition-all {
+          transition-property: all;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Micro-interactions */
+        .hover-lift:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Staggered animation for grid items */
+        @keyframes staggerFadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .grid > div {
+          animation: staggerFadeInUp 0.6s ease-out forwards;
+          opacity: 0;
+        }
+
+        /* Progressive delay for grid items */
+        .grid > div:nth-child(1) { animation-delay: 0ms; }
+        .grid > div:nth-child(2) { animation-delay: 50ms; }
+        .grid > div:nth-child(3) { animation-delay: 100ms; }
+        .grid > div:nth-child(4) { animation-delay: 150ms; }
+        .grid > div:nth-child(5) { animation-delay: 200ms; }
+        .grid > div:nth-child(6) { animation-delay: 250ms; }
+        .grid > div:nth-child(7) { animation-delay: 300ms; }
+        .grid > div:nth-child(8) { animation-delay: 350ms; }
+        .grid > div:nth-child(9) { animation-delay: 400ms; }
+        .grid > div:nth-child(10) { animation-delay: 450ms; }
+        .grid > div:nth-child(11) { animation-delay: 500ms; }
+        .grid > div:nth-child(12) { animation-delay: 550ms; }
+
+        /* Loading shimmer effect */
+        @keyframes shimmer {
+          0% {
+            background-position: -200px 0;
+          }
+          100% {
+            background-position: calc(200px + 100%) 0;
+          }
+        }
+
+        .animate-pulse {
+          background: linear-gradient(90deg, #f0f0f0 25%, transparent 50%, #f0f0f0 75%);
+          background-size: 200px 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        /* Responsive grid adjustments */
+        @media (max-width: 768px) {
+          .grid > div {
+            animation-delay: 0ms !important;
+          }
+        }
+      `}</style>
     </>
   );
 };

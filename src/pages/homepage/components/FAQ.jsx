@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import { Link } from 'react-router-dom';
 
 const FAQ = () => {
   const [activeIndex, setActiveIndex] = useState(null);
@@ -61,13 +62,13 @@ return (
                                     <p className="text-text-secondary mb-4">
                                         Our support team is available 24/7 to assist you with any questions.
                                     </p>
-                                    <a
-                                        href="/contact"
+                                    <Link
+                                        to="/contact"
                                         className="inline-flex items-center text-primary font-medium hover:text-primary-700 transition-colors"
                                     >
                                         Contact Support
                                         <Icon name="ArrowRight" size={18} className="ml-2" />
-                                    </a>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -129,13 +130,14 @@ return (
                                 <p className="text-text-secondary mb-4">
                                     Our support team is available 24/7 to assist you with any questions.
                                 </p>
-                                <a
-                                    href="/contact"
-                                    className="inline-flex items-center text-primary font-medium hover:text-primary-700 transition-colors"
-                                >
+                                <Link
+                                    to="/contact" 
+                                    className="inline-flex items-center text-primary font-medium
+                                         transition-colors duration-200"
+                                  >
                                     Contact Support
                                     <Icon name="ArrowRight" size={18} className="ml-2" />
-                                </a>
+                                </Link>
                             </div>
                         </div>
                     </div>

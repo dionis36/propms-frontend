@@ -177,25 +177,26 @@ const FilterPanel = ({
   return (
     <>
       {/* Mobile Backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Filter Panel */}
+    {isOpen && (
       <div 
-        ref={panelRef}
-        className={`
-          fixed lg:relative top-0 left-0 h-full w-80 lg:w-80 
-          bg-surface border-r border-border z-50 lg:z-auto
-          transform transition-all duration-300 ease-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${isOpen ? 'lg:block' : 'lg:hidden'}
-          lg:shadow-none shadow-elevation-4 lg:h-[calc(100vh-160px)]
-        `}
-      >
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+        onClick={onClose}
+      />
+    )}
+
+    {/* Filter Panel */}
+    <div 
+      ref={panelRef}
+      className={`
+        fixed lg:relative top-0 left-0 h-full w-80 lg:w-80 
+        bg-surface border-r border-border z-50 lg:z-auto
+        transform transition-all duration-300 ease-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${isOpen ? 'lg:block' : 'lg:hidden'}
+        lg:shadow-none shadow-elevation-4
+        lg:sticky lg:top-20 lg:self-start lg:min-h-[calc(100vh-10rem)]
+      `}
+    >
         <div className="h-full flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-surface flex-shrink-0">

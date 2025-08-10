@@ -8,7 +8,7 @@ import { getAllProperties } from "../services/api";
  * @param {Object} params - Query params: page, limit, filters
  * @returns React Query result object
  */
-export function useProperties({ page = 1, limit = 10, filters = {} }) {
+export function useProperties({ page = 1, limit = 12, filters = {} }) {
   return useQuery({
     queryKey: ["properties", page, limit, filters],
     queryFn: () => getAllProperties({ page, limit, filters }),

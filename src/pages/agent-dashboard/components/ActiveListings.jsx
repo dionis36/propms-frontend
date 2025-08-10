@@ -1,13 +1,17 @@
 // pages/agent-dashboard/components/ActiveListings.jsx
+
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteProperty } from '../../../services/api';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import StatusBadge from '../../../components/StatusBadge';
 import { createPortal } from 'react-dom';
 
-export default function ActiveListings({ listings, onDeleteListing, onUpdateProperty }) {
+// 🚨 NEW: Import the React Query hook for deletion
+import { useDeleteProperty } from '../../../hooks/mutations/useDeleteProperty';
+
+
+export default function ActiveListings({ listings }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -23,6 +27,9 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
   const editModalRef = useRef(null);
   const { showToast } = useToast();
   const { accessToken } = useAuth();
+  
+  // 🚨 NEW: Call the deletion mutation hook
+  const deleteMutation = useDeleteProperty();
 
   // Constants
   const itemsPerPage = 6;
@@ -107,29 +114,25 @@ export default function ActiveListings({ listings, onDeleteListing, onUpdateProp
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = async () => {
-    if (!propertyToDelete) return;
+const confirmDelete = async () => {
+  if (!propertyToDelete) return;
 
-    try {
-      setDeletingId(propertyToDelete.id);
-      
-      await deleteProperty(propertyToDelete.id, accessToken);
-      
-      // Call the parent callback to update the listings state
-      if (onDeleteListing) {
-        onDeleteListing(propertyToDelete.id);
-      }
-      
-      showToast("Property deleted successfully", "success");
-      setShowDeleteModal(false);
-      setPropertyToDelete(null);
-    } catch (error) {
-      console.error('Failed to delete property:', error);
-      showToast("Failed to delete property. Please try again.", "error");
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  try {
+    // 🚨 MODIFICATION HERE
+    // Pass an object containing both the propertyId and the token
+    await deleteMutation.mutateAsync({
+      propertyId: propertyToDelete.id,
+      token: accessToken
+    });
+    
+    showToast("Property deleted successfully", "success");
+    setShowDeleteModal(false);
+    setPropertyToDelete(null);
+  } catch (error) {
+    console.error('Failed to delete property:', error);
+    showToast("Failed to delete property. Please try again.", "error");
+  }
+};
 
   // Handle edit modal
   const handleEditClick = (property) => {
