@@ -6,7 +6,8 @@ import { Helmet } from 'react-helmet-async';
 
 import HeroSection from './components/HeroSection';
 import FeaturedProperties from './components/FeaturedProperties';
-import QuickStats from './components/QuickStats';
+// import QuickStats from './components/QuickStats';
+import HowItWorks from './components/HowItWorks';
 import AgentSpotlight from './components/AgentSpotlight';
 import FAQ from './components/FAQ';
 
@@ -125,7 +126,8 @@ const Homepage = () => {
             {/* FeaturedProperties now uses real backend data */}
             <FeaturedProperties />
             <AgentSpotlight />
-            <QuickStats />
+            <HowItWorks />
+            {/* <QuickStats /> */}
             <FAQ />
           </div>
         </main>

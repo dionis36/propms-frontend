@@ -32,7 +32,7 @@ const Unauthorized = () => {
 
         <div className="space-y-4">
           <Link
-            to="/login-register" // Redirect to login/register page
+            to="/login" // Redirect to login/register page
             className="inline-flex items-center justify-center w-full px-6 py-3 bg-primary text-white
                        rounded-md font-medium hover:bg-primary-700 transition-all duration-200 ease-out
                        micro-interaction"

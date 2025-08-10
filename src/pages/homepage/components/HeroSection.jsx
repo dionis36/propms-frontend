@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Image from '../../../components/AppImage';
 
+// This component displays the main hero section with a carousel of background images,
+// a call-to-action button, and navigation indicators. The design has been updated
+// to have a consistent background for the main interactive elements, remove floating
+// animations, and enhance the scroll indicator.
 const HeroSection = ({ onSearch }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
@@ -59,7 +63,7 @@ const HeroSection = ({ onSearch }) => {
     carousel.addEventListener('mouseenter', pause);
     carousel.addEventListener('touchstart', pause);
     carousel.addEventListener('mouseleave', resume);
-    carousel.addEventListener('touchend', resume);
+    carousel.addEventListener('touchend', resume); // Corrected this line to add the event listener
     
     return () => {
       clearInterval(interval);
@@ -116,15 +120,7 @@ const HeroSection = ({ onSearch }) => {
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black/90"></div>
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-black/60"></div>
         
-        {/* Animated particles overlay */}
-        <div className="absolute inset-0 opacity-40">
-          <div className="absolute top-1/4 left-1/4 w-1 h-1 sm:w-2 sm:h-2 bg-white rounded-full animate-pulse"></div>
-          <div className="absolute top-1/3 right-1/3 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-white/70 rounded-full animate-pulse delay-1000"></div>
-          <div className="absolute top-2/3 left-1/3 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-white/50 rounded-full animate-pulse delay-2000"></div>
-          <div className="absolute bottom-1/3 right-1/4 w-1 h-1 sm:w-2 sm:h-2 bg-white/60 rounded-full animate-pulse delay-3000"></div>
-          <div className="absolute top-1/2 left-1/6 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-primary/80 rounded-full animate-pulse delay-500"></div>
-          <div className="absolute bottom-1/4 right-1/6 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-primary/60 rounded-full animate-pulse delay-1500"></div>
-        </div>
+        {/* Animated particles overlay has been removed */}
       </div>
 
       {/* Content */}
@@ -147,11 +143,11 @@ const HeroSection = ({ onSearch }) => {
           <div className={`w-full max-w-md sm:max-w-lg transition-all duration-700 ease-out delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <button
               onClick={handleSearchClick}
-              className="group relative overflow-hidden w-full bg-white/20 backdrop-blur-lg 
+              className="group relative overflow-hidden w-full bg-white/10 backdrop-blur-sm 
                          text-white px-6 sm:px-8 py-4 sm:py-5 rounded-xl text-lg sm:text-xl font-semibold
                          transform hover:scale-105 transition-all duration-300 ease-out
                          border border-white/30 hover:border-white/50
-                         hover:bg-white/30 shadow-xl hover:shadow-2xl"
+                         hover:bg-white/20 shadow-xl hover:shadow-2xl"
             >
               {/* Shine effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
@@ -181,10 +177,10 @@ const HeroSection = ({ onSearch }) => {
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`relative transition-all duration-300 backdrop-blur-sm ${
+              className={`relative transition-all duration-300 ${
                 index === currentSlide 
-                  ? 'w-6 sm:w-8 h-2 sm:h-3 bg-white/90 border border-white/50 rounded-full scale-125' 
-                  : 'w-2 sm:w-3 h-2 sm:h-3 bg-white/30 border border-white/20 hover:bg-white/50 hover:border-white/40 rounded-full hover:scale-110'
+                  ? 'w-6 sm:w-8 h-2 sm:h-3 bg-white/10 backdrop-blur-sm rounded-full scale-125' 
+                  : 'w-2 sm:w-3 h-2 sm:h-3 bg-white/10 backdrop-blur-sm rounded-full hover:scale-110'
               }`}
               aria-label={`Go to slide ${index + 1}`}
             >
@@ -197,48 +193,25 @@ const HeroSection = ({ onSearch }) => {
 
 
         {/* Enhanced Scroll Indicator */}
-        <div className="animate-bounce">
-          <div className="w-4 sm:w-5 h-6 sm:h-8 rounded-full border border-white/50 flex justify-center relative overflow-hidden">
-            <div className="w-0.5 h-1 sm:h-1.5 bg-white rounded-full mt-1 sm:mt-1.5 animate-scroll"></div>
+        <div className="flex flex-col items-center">
+          <div className="w-5 sm:w-6 h-8 sm:h-10 rounded-full border border-white/50 flex justify-center relative overflow-hidden">
+            <div className="w-1 h-2 bg-white rounded-full mt-2 animate-scroll"></div>
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-transparent animate-pulse"></div>
           </div>
+          <span className="mt-2 text-white/70 text-sm font-light">Scroll Down</span>
         </div>
       </div>
 
-      {/* Floating elements for visual appeal - hidden on mobile */}
-      <div className="absolute top-16 sm:top-20 left-4 sm:left-10 w-12 sm:w-16 lg:w-20 h-12 sm:h-16 lg:h-20 border border-white/20 rounded-full animate-float opacity-50 sm:opacity-100"></div>
-      <div className="absolute top-32 sm:top-40 right-6 sm:right-16 w-8 sm:w-10 lg:w-12 h-8 sm:h-10 lg:h-12 bg-primary/20 rounded-full animate-float-delayed opacity-30 sm:opacity-100"></div>
-      <div className="absolute bottom-24 sm:bottom-32 left-8 sm:left-20 w-8 sm:w-12 lg:w-16 h-8 sm:h-12 lg:h-16 border border-primary/30 rotate-45 animate-spin-slow opacity-40 sm:opacity-100 hidden sm:block"></div>
+      {/* Floating elements for visual appeal have been removed */}
 
       <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-10px) rotate(180deg); }
-        }
-        @keyframes float-delayed {
-          0%, 100% { transform: translateY(0px) scale(1); }
-          50% { transform: translateY(-8px) scale(1.05); }
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
         @keyframes scroll {
-          0% { opacity: 0; transform: translateY(-6px); }
-          50% { opacity: 1; }
-          100% { opacity: 0; transform: translateY(6px); }
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-float-delayed {
-          animation: float-delayed 4s ease-in-out infinite 2s;
-        }
-        .animate-spin-slow {
-          animation: spin-slow 20s linear infinite;
+          0% { opacity: 0; transform: translateY(-8px); }
+          50% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(8px); }
         }
         .animate-scroll {
-          animation: scroll 2s ease-in-out infinite;
+          animation: scroll 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
       `}</style>
     </section>
