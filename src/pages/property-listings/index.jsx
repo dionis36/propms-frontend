@@ -660,7 +660,7 @@ const PropertyListings = () => {
               <div className={`
                 flex-1 min-w-0 transition-all duration-300 ease-in-out
                 ${isFilterPanelCollapsed ? 'max-w-full' : ''}
-              `}>
+              `}>  
                 {/* View Toggle and Sort Controls */}
                 <div className="flex items-center justify-between mb-6">
                   {/* Left Side: Filter Button + View Toggle */}

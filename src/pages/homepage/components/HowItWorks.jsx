@@ -10,28 +10,28 @@ const HowItWorks = () => {
   const steps = [
     {
       id: 1,
-      title: "Evaluate Property",
+      title: "1. Evaluate Property",
       icon: "Search",
       description: "Browse extensive listings with smart filters to find your ideal match effortlessly.",
       color: "text-primary",
     },
     {
       id: 2,
-      title: "Meet Your Agent",
+      title: "2. Contact the Agent",
       icon: "Users",
       description: "Connect with our experienced agents who provide guidance through every step.",
       color: "text-accent",
     },
     {
       id: 3,
-      title: "Close the Deal",
+      title: "3. Close the Deal",
       icon: "Handshake",
       description: "Secure your property with a streamlined process and our expert support.",
       color: "text-success",
     },
     {
       id: 4,
-      title: "Have Your Property",
+      title: "4. Have Your Property",
       icon: "Home",
       description: "Enjoy your new home with ongoing support and full property management services.",
       color: "text-warning",
