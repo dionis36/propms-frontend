@@ -883,7 +883,8 @@ const PropertyListings = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="h-[70vh] rounded-xl overflow-hidden border border-border shadow-lg transition-all duration-500 transform">
+                  // <div className="h-[70vh] rounded-xl overflow-hidden border border-border shadow-lg transition-all duration-500 transform">
+                  <div className="transition-all duration-500 transform">
                     <MapView
                       properties={filteredProperties}
                       selectedProperty={selectedProperty}
