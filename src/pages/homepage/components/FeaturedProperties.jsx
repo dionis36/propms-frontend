@@ -132,6 +132,7 @@ const FeaturedProperties = () => {
   const PropertyCard = ({ property }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
     
     const agentFullName = property.agent.name;
     const nameParts = agentFullName.split(' ');
@@ -152,6 +153,10 @@ const FeaturedProperties = () => {
       e.preventDefault();
       e.stopPropagation();
       
+      if (isTransitioning) return;
+      
+      setIsTransitioning(true);
+      
       if (direction === 'next') {
         setCurrentImageIndex((prev) => 
           prev === displayImages?.length - 1 ? 0 : prev + 1
@@ -161,19 +166,22 @@ const FeaturedProperties = () => {
           prev === 0 ? displayImages?.length - 1 : prev - 1
         );
       }
+      
+      // Reset transition state after animation completes
+      setTimeout(() => setIsTransitioning(false), 300);
     };
 
     return (
       <Link
         to={`/property-details?id=${property?.id}`}
-        className="block card hover:shadow-elevation-2 transition-all duration-200 ease-out micro-interaction"
+        className="block card hover:shadow-elevation-3 transition-all duration-200 ease-out micro-interaction group"
       >
         {/* Property Images */}
         <div className="relative h-48 overflow-hidden rounded-t-lg">
           <Image
             src={displayImages?.[currentImageIndex]}
             alt={property?.title || 'Property image'}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           
           {/* Image Navigation */}
@@ -241,7 +249,7 @@ const FeaturedProperties = () => {
         <div className="p-4">
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-text-primary truncate">
+              <h3 className="text-lg font-semibold text-text-primary group-hover:text-primary transition-colors duration-200 truncate">
                 {property?.title || 'No title'}
                 {property?.status && (
                   <StatusBadge status={property.status} className="ml-2" />

@@ -743,7 +743,7 @@ const PropertyListings = () => {
                             currentProperties.map((property, index) => (
                               <div
                                 key={property.id}
-                                className="transform transition-all duration-300 hover:scale-105 hover:-translate-y-1"
+                                className="transform transition-all duration-300 "
                                 style={{
                                   animationDelay: `${index * 50}ms`,
                                   animation: 'fadeInUp 0.6s ease-out forwards'
@@ -774,7 +774,7 @@ const PropertyListings = () => {
                                     setSearchParams(new URLSearchParams());
                                     setSearchKeyword('');
                                   }}
-                                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-700 transition-all duration-300 transform hover:scale-105"
+                                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-700 transition-all duration-300"
                                 >
                                   Clear All Filters
                                 </button>

@@ -18,6 +18,7 @@ import 'leaflet.markercluster';
 // A helper component to handle map instance and controls
 const MapControls = ({ mapCenter, zoom, handleResetView, handleZoomIn, handleZoomOut }) => {
   const map = useMap();
+  const mapContainerRef = useRef(null);
 
   // Use useEffect to update the map view when state changes
   useEffect(() => {
@@ -26,26 +27,144 @@ const MapControls = ({ mapCenter, zoom, handleResetView, handleZoomIn, handleZoo
     });
   }, [map, mapCenter, zoom]);
 
+  // Handle Ctrl + scroll zoom behavior
+  useEffect(() => {
+    // Disable scroll wheel zoom by default
+    map.scrollWheelZoom.disable();
+
+    let ctrlPressed = false;
+    
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        ctrlPressed = true;
+        map.scrollWheelZoom.enable();
+      }
+    };
+    
+    const handleKeyUp = (e) => {
+      if (!e.ctrlKey && !e.metaKey) {
+        ctrlPressed = false;
+        map.scrollWheelZoom.disable();
+      }
+    };
+    
+    const handleWheel = (e) => {
+      if (!ctrlPressed) {
+        e.preventDefault();
+        // Show temporary message
+        showCtrlZoomMessage();
+      }
+    };
+
+    // Show temporary message for Ctrl+scroll
+    const showCtrlZoomMessage = () => {
+      const existingMessage = document.querySelector('.ctrl-zoom-message');
+      if (existingMessage) return;
+
+      const mapContainer = map.getContainer();
+      const message = document.createElement('div');
+      message.className = 'ctrl-zoom-message';
+      message.innerHTML = `
+        <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0, 0, 0, 0.5);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 12px;
+          z-index: 1000;
+          pointer-events: none;
+          backdrop-filter: blur(4px);
+        ">
+          Hold Ctrl and scroll to zoom
+        </div>
+      `;
+      
+      mapContainer.style.position = 'relative';
+      mapContainer.appendChild(message);
+      
+      setTimeout(() => {
+        if (message.parentNode) {
+          message.parentNode.removeChild(message);
+        }
+      }, 2000);
+    };
+
+    // Add event listeners
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+    map.getContainer().addEventListener('wheel', handleWheel, { passive: false });
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+      const container = map.getContainer();
+      if (container) {
+        container.removeEventListener('wheel', handleWheel);
+      }
+    };
+  }, [map]);
+
+  // New useEffect for touch device message
+  useEffect(() => {
+    if ('ontouchstart' in window) {
+      const mapContainer = map.getContainer();
+      const touchMessage = document.createElement('div');
+      touchMessage.className = 'touch-instruction-message';
+      touchMessage.innerHTML = `
+        <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0, 0, 0, 0.5);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 14px;
+          text-align: center;
+          z-index: 1000;
+          pointer-events: none;
+          backdrop-filter: blur(4px);
+          white-space: nowrap;
+        ">
+          Double tap to zoom and hold to move
+        </div>
+      `;
+    
+      mapContainer.appendChild(touchMessage);
+    
+      setTimeout(() => {
+        if (touchMessage.parentNode) {
+          touchMessage.parentNode.removeChild(touchMessage);
+        }
+      }, 4000); // Display for 4 seconds
+    }
+  }, [map]);
+
   return (
     <>
       {/* Enhanced Map Controls */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col space-y-2">
         {/* Zoom Controls */}
-        <div className="bg-surface/95 backdrop-blur-md rounded-lg shadow-elevation-2 border border-border overflow-hidden">
+        <div className="bg-black/50 backdrop-blur-sm rounded-lg overflow-hidden">
           <button
             onClick={() => handleZoomIn(map)}
-            className="block w-10 h-10 flex items-center justify-center text-text-primary 
-                       hover:bg-primary hover:text-white hover:border-primary 
-                       transition-all duration-200 ease-out border-b border-border last:border-b-0"
+            className="block w-10 h-10 flex items-center justify-center text-white 
+                       hover:bg-black/70 transition-all duration-200 ease-out 
+                       border-b border-white/20 last:border-b-0"
             title="Zoom in"
           >
             <Icon name="Plus" size={16} />
           </button>
           <button
             onClick={() => handleZoomOut(map)}
-            className="block w-10 h-10 flex items-center justify-center text-text-primary 
-                       hover:bg-primary hover:text-white hover:border-primary 
-                       transition-all duration-200 ease-out"
+            className="block w-10 h-10 flex items-center justify-center text-white 
+                       hover:bg-black/70 transition-all duration-200 ease-out"
             title="Zoom out"
           >
             <Icon name="Minus" size={16} />
@@ -53,12 +172,11 @@ const MapControls = ({ mapCenter, zoom, handleResetView, handleZoomIn, handleZoo
         </div>
 
         {/* Reset Control */}
-        <div className="bg-surface/95 backdrop-blur-md rounded-lg shadow-elevation-2 border border-border overflow-hidden">
+        <div className="bg-black/50 backdrop-blur-sm rounded-lg overflow-hidden">
           <button
             onClick={() => handleResetView(map)}
-            className="block w-10 h-10 flex items-center justify-center text-text-primary 
-                       hover:bg-primary hover:text-white hover:border-primary hover:shadow-lg hover:scale-110 
-                       transition-all duration-300 ease-out transform active:scale-95 border border-border hover:border-primary"
+            className="block w-10 h-10 flex items-center justify-center text-white 
+                       hover:bg-black/70 transition-all duration-200 ease-out"
             title="Reset to Dar es Salaam view"
           >
             <Icon name="RotateCcw" size={16} />
@@ -438,20 +556,12 @@ const MapView = ({
         ref={mapRef}
         center={[mapCenter.lat, mapCenter.lng]}
         zoom={zoom}
-        scrollWheelZoom={true}
+        scrollWheelZoom={false} // Disabled by default - controlled by MapControls
         zoomControl={false} // Disable default zoom control
         className="w-full h-full relative z-0"
         whenCreated={mapInstance => {
           mapRef.current = mapInstance;
           setMapLoaded(true);
-          
-          // Prevent scroll wheel zoom when scrolling over UI elements
-          mapInstance.on('wheel', (e) => {
-            if (e.originalEvent.target.closest('.leaflet-control-container') ||
-                e.originalEvent.target.closest('.absolute')) {
-              e.originalEvent.preventDefault();
-            }
-          });
         }}
       >
         <TileLayer
@@ -548,13 +658,13 @@ const MapView = ({
 
               {/* New Badge */}
               {activeProperty.daysOnMarket <= 7 && (
-                <div className="absolute top-2 left-2 bg-success text-white px-2 py-1 rounded-md text-xs font-medium">
+                <div className="absolute bottom-2 right-2 bg-success text-white px-2 py-1 rounded-md text-xs font-medium">
                   New
                 </div>
               )}
 
               {/* Price Badge */}
-              <div className="absolute bottom-2 left-2 bg-primary text-white px-2 py-1 rounded-md text-xs font-bold shadow-lg">
+              <div className="absolute bottom-2 left-2 bg-black/50 text-white px-2 py-1 rounded-md text-xs font-bold shadow-lg backdrop-blur-sm">
                 {formatFullPrice(activeProperty.price)}
               </div>
             </div>
@@ -616,10 +726,9 @@ const MapView = ({
       )}
 
       {/* Map Info Panel */}
-      <div className="absolute bottom-4 left-4 z-[1000] bg-surface/95 backdrop-blur-md rounded-lg shadow-elevation-2 
-                    border border-border px-3 py-2">
-        <div className="flex items-center space-x-2 text-xs text-text-secondary">
-          <Icon name="MapPin" size={14} className="text-primary" />
+      <div className="absolute bottom-4 left-4 z-[1000] bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2">
+        <div className="flex items-center space-x-2 text-xs text-white">
+          <Icon name="MapPin" size={14} className="text-white" />
           <span className="font-medium">{validProperties.length}</span>
           <span>properties in Dar es Salaam</span>
         </div>

@@ -141,7 +141,7 @@ const HeroSection = ({ onSearch }) => {
           
           {/* Glass-style CTA Button */}
           <div className={`w-full max-w-md sm:max-w-lg transition-all duration-700 ease-out delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <button
+            <button 
               onClick={handleSearchClick}
               className="group relative overflow-hidden w-full bg-white/10 backdrop-blur-sm 
                          text-white px-6 sm:px-8 py-4 sm:py-5 rounded-xl text-lg sm:text-xl font-semibold
