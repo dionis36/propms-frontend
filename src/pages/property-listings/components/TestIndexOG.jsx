@@ -96,6 +96,7 @@ const PropertyListings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState('list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
   const [searchKeyword, setSearchKeyword] = useState(searchParams.get('query') || '');
@@ -103,7 +104,7 @@ const PropertyListings = () => {
 
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(12); // Increased for grid layout
 
   const isInitialMount = useRef(true);
 
@@ -359,13 +360,6 @@ const PropertyListings = () => {
     }
   }, [properties, formatListings, applyFilters, currentPage, itemsPerPage, debouncedSearchParams, totalResults, loading]);
 
-  // Reset page when debounced search params change (not immediate params)
-  // useEffect(() => {
-  //   if (!isInitialMount.current) {
-  //     setCurrentPage(1);
-  //   }
-  // }, [debouncedSearchParams]);
-
   // Mark initial mount as complete
   useEffect(() => {
     if (isInitialMount.current) {
@@ -425,17 +419,17 @@ const PropertyListings = () => {
 
   // 🎯 DEBOUNCED FILTER CHANGE - This now updates searchParams immediately for UI responsiveness
   // but the actual API call is debounced via debouncedSearchParams
-const handleFilterChange = useCallback((filters) => {
+  const handleFilterChange = useCallback((filters) => {
     const newSearchParams = new URLSearchParams();
 
     Object.entries(filters).forEach(([key, value]) => {
-        if (key === 'amenities') {
-            if (Array.isArray(value) && value.length > 0) {
-                newSearchParams.set(key, JSON.stringify(value));
-            }
-        } else if (value && value !== '' && value !== 'all') {
-            newSearchParams.set(key, value);
+      if (key === 'amenities') {
+        if (Array.isArray(value) && value.length > 0) {
+          newSearchParams.set(key, JSON.stringify(value));
         }
+      } else if (value && value !== '' && value !== 'all') {
+        newSearchParams.set(key, value);
+      }
     });
 
     // Reset page to 1 when filters change
@@ -444,7 +438,7 @@ const handleFilterChange = useCallback((filters) => {
     setSearchKeyword(filters.query || '');
 
     console.log('🎯 Filter change triggered, debounced API call will follow...');
-}, [setSearchParams]);
+  }, [setSearchParams]);
 
   // Handle property save/unsave
   const handlePropertySave = (propertyId, isSaved) => {
@@ -471,9 +465,16 @@ const handleFilterChange = useCallback((filters) => {
     setCurrentPage(pageNumber);
     
     if (desktopListRef.current) {
-      desktopListRef.current.scrollTop = 0;
+      desktopListRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
     }
-    window.scrollTo(0, 0);
   };
 
   // Get breadcrumbs
@@ -537,472 +538,487 @@ const handleFilterChange = useCallback((filters) => {
   return (
     <>
       {helmet}
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="pt-16 lg:pt-18">
-        {/* Search Results Header */}
-        <div className="bg-surface border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-text-primary">
-                  Properties for Sale
-                </h1>
-                <p className="text-text-secondary mt-1">
-                  {loading ? 'Loading...' : 
-                    `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${
-                      Math.min(currentPage * itemsPerPage, totalResults)
-                    } of ${totalResults} properties`}
-                </p>
-                {/* 💾 Cache status indicator for debugging */}
-                <p className="text-xs text-text-secondary mt-1">
-                  💾 Cache: {propertyCache.size()}/{propertyCache.maxSize} entries
-                </p>
-              </div>
-
-              {/* Mobile Controls */}
-              <div className="flex sm:hidden items-center space-x-2">
-                {/* Mobile Search Input */}
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    className="pl-10 pr-4 py-3 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full"
-                    placeholder="Search..."
-                    value={searchKeyword}
-                    onChange={(e) => handleSearchInputChange(e.target.value)}
-                    onKeyDown={handleKeywordSearch}
-                  />
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Icon name="Search" size={16} className="text-text-secondary" />
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        
+        <main className="flex-grow pt-16 lg:pt-20">
+          {/* Search Results Header */}
+          <div className="bg-surface border-b border-border">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl md:text-2xl font-bold text-text-primary">
+                    Properties for Sale
+                  </h1>
+                  <div className="flex items-center flex-wrap gap-2 mt-1">
+                    <p className="text-sm md:text-base text-text-secondary">
+                      {loading ? 'Loading...' : 
+                        `Showing ${(currentPage - 1) * itemsPerPage + 1} to ${
+                          Math.min(currentPage * itemsPerPage, totalResults)
+                        } of ${totalResults} properties`}
+                    </p>
+                    {/* Cache status indicator for debugging */}
+                    <span className="text-xs text-text-secondary bg-secondary-100 px-2 py-1 rounded-full">
+                      💾 Cache: {propertyCache.size()}/{propertyCache.maxSize}
+                    </span>
                   </div>
                 </div>
 
-                {/* Mobile View Toggle */}
-                <div className="flex bg-secondary-100 rounded-md p-1">
+                {/* Mobile Controls */}
+                <div className="flex md:hidden items-center justify-between gap-2 w-full">
+                  {/* Mobile Search Input */}
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full transition-all duration-200"
+                      placeholder="Search..."
+                      value={searchKeyword}
+                      onChange={(e) => handleSearchInputChange(e.target.value)}
+                      onKeyDown={handleKeywordSearch}
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Icon name="Search" size={16} className="text-text-secondary" />
+                    </div>
+                  </div>
+
+                  {/* Mobile Filter Button */}
                   <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded text-sm font-medium transition-all duration-200 ${
-                      viewMode === 'list' ?'bg-surface text-text-primary shadow-sm' :'text-text-secondary hover:text-text-primary'
-                    }`}
+                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                    className="flex items-center justify-center h-11 w-11 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-300 transform hover:scale-105 active:scale-95"
                   >
-                    <Icon name="List" size={16} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('map')}
-                    className={`p-2 rounded text-sm font-medium transition-all duration-200 ${
-                      viewMode === 'map' ?'bg-surface text-text-primary shadow-sm' :'text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    <Icon name="Map" size={16} />
+                    <Icon name="SlidersHorizontal" size={18} />
                   </button>
                 </div>
 
-                {/* Mobile Sort Dropdown */}
-                <div className="h-12">
+                {/* Desktop Controls */}
+                <div className="hidden md:flex items-center gap-3">
+                  {/* Keyword Search */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="pl-10 pr-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64 transition-all duration-200"
+                      placeholder="Search properties..."
+                      value={searchKeyword}
+                      onChange={(e) => handleSearchInputChange(e.target.value)}
+                      onKeyDown={handleKeywordSearch}
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Icon name="Search" size={16} className="text-text-secondary" />
+                    </div>
+                  </div>
+
+                  {/* Sort Dropdown */}
                   <SortDropdown value={sortBy} onChange={handleSortChange} />
-                </div>
 
-                {/* Mobile Filter Button */}
-                <button
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
-                  className="flex items-center justify-center h-12 w-12 bg-primary text-white rounded-md hover:bg-primary-700 transition-all duration-200 ease-out micro-interaction"
-                >
-                  <Icon name="SlidersHorizontal" size={16} />
-                </button>
-              </div>
-
-              {/* Desktop Controls */}
-              <div className="hidden sm:flex items-center space-x-3">
-                {/* Keyword Search */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64"
-                    placeholder="Search by keyword..."
-                    value={searchKeyword}
-                    onChange={(e) => handleSearchInputChange(e.target.value)}
-                    onKeyDown={handleKeywordSearch}
-                  />
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Icon name="Search" size={16} className="text-text-secondary" />
-                  </div>
-                </div>
-
-                {/* View Toggle (Mobile) */}
-                <div className="flex lg:hidden bg-secondary-100 rounded-md p-1">
+                  {/* Filter Toggle */}
                   <button
-                    onClick={() => setViewMode('list')}
-                    className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${
-                      viewMode === 'list' ?'bg-surface text-text-primary shadow-sm' :'text-text-secondary hover:text-text-primary'
-                    }`}
+                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                    className="flex items-center space-x-2 px-4 py-2.5 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-700 transition-all duration-300 transform hover:scale-105 active:scale-95"
                   >
-                    <Icon name="List" size={16} className="inline mr-1" />
-                    List
-                  </button>
-                  <button
-                    onClick={() => setViewMode('map')}
-                    className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-200 ${
-                      viewMode === 'map' ?'bg-surface text-text-primary shadow-sm' :'text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    <Icon name="Map" size={16} className="inline mr-1" />
-                    Map
+                    <Icon name="SlidersHorizontal" size={16} />
+                    <span>Filters</span>
                   </button>
                 </div>
-
-                {/* Sort Dropdown */}
-                <SortDropdown value={sortBy} onChange={handleSortChange} />
-
-                {/* Filter Toggle */}
-                <button
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-700 transition-all duration-200 ease-out micro-interaction"
-                >
-                  <Icon name="SlidersHorizontal" size={16} />
-                  <span className="hidden sm:inline">Filters</span>
-                </button>
-
-                {/* 🧪 Debug Cache Controls (remove in production) */}
-                <button
-                  onClick={clearCache}
-                  className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded"
-                  title="Clear Cache"
-                >
-                  Clear Cache
-                </button>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto">
-          <div className="flex">
-            {/* Filter Panel */}
-            <FilterPanel
-              isOpen={isFilterOpen}
-              onClose={() => setIsFilterOpen(false)}
-              onFilterChange={handleFilterChange}
-              initialFilters={{
-                query: searchParams.get('query') || '',
-                location: searchParams.get('location') || '',
-                propertyType: searchParams.get('propertyType') || '',
-                minPrice: searchParams.get('minPrice') || '',
-                maxPrice: searchParams.get('maxPrice') || '',
-                bedrooms: searchParams.get('bedrooms') || '',
-                bathrooms: searchParams.get('bathrooms') || '',
-                amenities: searchParams.get('amenities') ? JSON.parse(searchParams.get('amenities')) : []
-              }}
-            />
+          {/* Main Content Area */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex gap-6 relative items-start">
+              {/* Desktop Filter Panel */}
+              {!isFilterOpen && !isFilterPanelCollapsed && (
+                <div className="hidden lg:block lg:w-80 flex-shrink-0">
+                  <FilterPanel
+                    isOpen={true}
+                    onClose={() => setIsFilterPanelCollapsed(true)} // Example: Can collapse
+                    onFilterChange={handleFilterChange}
+                    initialFilters={Object.fromEntries(searchParams)}
+                  />
+                </div>
+              )}
 
-            {/* Content Area */}
-            <div className="flex-1 min-w-0">
-              {/* Desktop Split View */}
-              <div className="hidden lg:flex h-[calc(100vh-160px)]">
-                {/* Property List */}
-                <div className="w-3/5 overflow-y-auto" ref={desktopListRef}>
-                  <div className="p-6">
-                    {loading ? (
-                      <div className="grid grid-cols-1 gap-6">
-                        {[...Array(6)].map((_, index) => (
-                          <div key={index} className="card p-4">
-                            <div className="animate-pulse">
-                              <div className="flex space-x-4">
-                                <div className="w-48 h-32 bg-secondary-200 rounded-md"></div>
-                                <div className="flex-1 space-y-3">
-                                  <div className="h-4 bg-secondary-200 rounded w-3/4"></div>
-                                  <div className="h-3 bg-secondary-200 rounded w-1/2"></div>
-                                  <div className="h-3 bg-secondary-200 rounded w-2/3"></div>
-                                  <div className="flex space-x-2">
-                                    <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                    <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                    <div className="h-3 bg-secondary-200 rounded w-16"></div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {currentProperties.map((property) => (
-                          <div
-                            key={property.id}
-                            onMouseEnter={() => setSelectedProperty(property)}
-                            onMouseLeave={() => setSelectedProperty(null)}
-                          >
-                            <PropertyCard
-                              property={property}
-                              variant="list"
-                              onSave={handlePropertySave}
-                              isHighlighted={selectedProperty?.id === property.id}
-                            />
-                          </div>
-                        ))}
-                        
-                        {filteredProperties.length === 0 && !loading && (
-                          <div className="text-center py-12">
-                            <Icon name="Search" size={48} className="text-secondary mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-text-primary mb-2">
-                              No properties found
-                            </h3>
-                            <p className="text-text-secondary">
-                              Try adjusting your search criteria or filters
-                            </p>
-                          </div>
-                        )}
+              {/* Mobile Filter Panel */}
+              <FilterPanel
+                isOpen={isFilterOpen}
+                onClose={() => setIsFilterOpen(false)}
+                onFilterChange={handleFilterChange}
+                initialFilters={{
+                  query: searchParams.get('query') || '',
+                  location: searchParams.get('location') || '',
+                  propertyType: searchParams.get('propertyType') || '',
+                  minPrice: searchParams.get('minPrice') || '',
+                  maxPrice: searchParams.get('maxPrice') || '',
+                  bedrooms: searchParams.get('bedrooms') || '',
+                  bathrooms: searchParams.get('bathrooms') || '',
+                  amenities: searchParams.get('amenities') ? JSON.parse(searchParams.get('amenities')) : []
+                }}
+                variant="mobile"
+              />
 
-                        {/* Pagination Controls */}
-                        {filteredProperties.length > 0 && totalPages > 1 && (
-                          <div className="flex items-center justify-between border-t border-border pt-6">
-                            <div className="text-sm text-text-secondary">
-                              Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <button
-                                onClick={() => handlePageChange(1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                First
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Previous
-                              </button>
-                              
-                              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNumber;
-                                if (totalPages <= 5) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage <= 3) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage >= totalPages - 2) {
-                                  pageNumber = totalPages - 4 + i;
-                                } else {
-                                  pageNumber = currentPage - 2 + i;
-                                }
-                                
-                                return (
-                                  <button
-                                    key={pageNumber}
-                                    onClick={() => handlePageChange(pageNumber)}
-                                    className={`w-8 h-8 rounded text-sm font-medium ${
-                                      currentPage === pageNumber
-                                        ? 'bg-primary text-white'
-                                        : 'text-text-primary hover:bg-secondary-50'
-                                    }`}
-                                  >
-                                    {pageNumber}
-                                  </button>
-                                );
-                              })}
-                              
-                              <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Next
-                              </button>
-                              
-                              <button
-                                onClick={() => handlePageChange(totalPages)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                                  currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
-                                }`}
-                              >
-                                Last
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+              {/* Content Area */}
+              <div className={`
+                flex-1 min-w-0 transition-all duration-300 ease-in-out
+                ${isFilterPanelCollapsed ? 'max-w-full' : ''}
+              `}>  
+                {/* View Toggle and Sort Controls */}
+                <div className="flex items-center justify-between mb-6">
+                  {/* Left Side: Filter Button + View Toggle */}
+                  <div className="flex items-center gap-3">
+                    {/* Filter Toggle Button (when collapsed) */}
+                    {isFilterPanelCollapsed && (
+                      <button
+                        onClick={() => setIsFilterPanelCollapsed(false)}
+                        className="hidden lg:flex items-center space-x-2 px-4 py-2 bg-secondary-100 text-text-primary rounded-lg hover:bg-secondary-200 transition-all duration-300 transform hover:scale-105"
+                        title="Show filters"
+                      >
+                        <Icon name="SlidersHorizontal" size={16} />
+                        <span className="text-sm font-medium">Filters</span>
+                      </button>
                     )}
+
+                    {/* View Toggle */}
+                    <div className="flex bg-secondary-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center transform ${
+                          viewMode === 'list' 
+                            ? 'bg-surface text-text-primary shadow-sm scale-105' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-secondary-50'
+                        }`}
+                      >
+                        <Icon name="Grid3X3" size={16} className="mr-1.5" />
+                        <span>Grid</span>
+                      </button>
+                      <button
+                        onClick={() => setViewMode('map')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center transform ${
+                          viewMode === 'map' 
+                            ? 'bg-surface text-text-primary shadow-sm scale-105' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-secondary-50'
+                        }`}
+                      >
+                        <Icon name="Map" size={16} className="mr-1.5" />
+                        <span>Map</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Results Count */}
+                  <div className="text-sm text-text-secondary hidden sm:block">
+                    <span className="animate-pulse">{totalResults}</span> properties found
                   </div>
                 </div>
 
-                {/* Map View */}
-                <div className="w-2/5 border-l border-border">
-                  <MapView
-                    properties={filteredProperties}
-                    selectedProperty={selectedProperty}
-                    onPropertySelect={setSelectedProperty}
-                  />
-                </div>
-              </div>
-
-              {/* Mobile View */}
-              <div className="lg:hidden">
+                {/* Properties Grid/Map View */}
                 {viewMode === 'list' ? (
-                  <div className="p-4">
+                  <div className="space-y-8">
                     {loading ? (
-                      <div className="grid grid-cols-1 gap-4">
-                        {[...Array(6)].map((_, index) => (
-                          <div key={index} className="card p-4">
-                            <div className="animate-pulse">
-                              <div className="w-full h-48 bg-secondary-200 rounded-md mb-4"></div>
-                              <div className="space-y-3">
-                                <div className="h-4 bg-secondary-200 rounded w-3/4"></div>
-                                <div className="h-3 bg-secondary-200 rounded w-1/2"></div>
-                                <div className="h-3 bg-secondary-200 rounded w-2/3"></div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                        {[...Array(12)].map((_, index) => (
+                          <div key={index} className="card p-0 rounded-xl overflow-hidden animate-pulse">
+                            <div className="w-full h-48 bg-secondary-200"></div>
+                            <div className="p-4 space-y-3">
+                              <div className="h-4 bg-secondary-200 rounded w-3/4"></div>
+                              <div className="h-3 bg-secondary-200 rounded w-1/2"></div>
+                              <div className="h-3 bg-secondary-200 rounded w-2/3"></div>
+                              <div className="flex space-x-2">
+                                <div className="h-3 bg-secondary-200 rounded w-16"></div>
+                                <div className="h-3 bg-secondary-200 rounded w-16"></div>
+                                <div className="h-3 bg-secondary-200 rounded w-16"></div>
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {currentProperties.map((property) => (
-                          <div key={property.id}>
-                            <PropertyCard
-                              property={property}
-                              variant="card"
-                              onSave={handlePropertySave}
-                            />
-                          </div>
-                        ))}
-                        
-                        {filteredProperties.length === 0 && !loading && (
-                          <div className="text-center py-12">
-                            <Icon name="Search" size={48} className="text-secondary mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-text-primary mb-2">
-                              No properties found
-                            </h3>
-                            <p className="text-text-secondary">
-                              Try adjusting your search criteria or filters
-                            </p>
-                          </div>
-                        )}
+                      <>
+                        {/* Properties Grid */}
+                        <div 
+                          ref={desktopListRef}
+                          className="grid gap-6 transition-all duration-300"
+                          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))' }}
+                        >
+                          {currentProperties.length > 0 ? (
+                            currentProperties.map((property, index) => (
+                              <div
+                                key={property.id}
+                                className="transform transition-all duration-300 "
+                                style={{
+                                  animationDelay: `${index * 50}ms`,
+                                  animation: 'fadeInUp 0.6s ease-out forwards'
+                                }}
+                                onMouseEnter={() => setSelectedProperty(property)}
+                                onMouseLeave={() => setSelectedProperty(null)}
+                              >
+                                <PropertyCard
+                                  property={property}
+                                  variant="card"
+                                  onSave={handlePropertySave}
+                                  isHighlighted={selectedProperty?.id === property.id}
+                                />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-full text-center py-16 animate-fadeIn">
+                              <div className="max-w-md mx-auto">
+                                <Icon name="Search" size={64} className="text-secondary mx-auto mb-6 animate-pulse" />
+                                <h3 className="text-xl font-semibold text-text-primary mb-3">
+                                  No properties found
+                                </h3>
+                                <p className="text-text-secondary mb-6">
+                                  Try adjusting your search criteria or filters to see more results
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    setSearchParams(new URLSearchParams());
+                                    setSearchKeyword('');
+                                  }}
+                                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-700 transition-all duration-300"
+                                >
+                                  Clear All Filters
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
-                        {/* Pagination Controls for Mobile */}
+                        {/* Modern Pagination Controls */}
                         {filteredProperties.length > 0 && totalPages > 1 && (
-                          <div className="flex flex-col items-center justify-center border-t border-border pt-6 space-y-4">
-                            <div className="flex items-center space-x-1">
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 mt-8 border-t border-border">
+                            <div className="text-sm text-text-secondary order-2 sm:order-1">
+                              Page <span className="font-medium text-primary">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-1 order-1 sm:order-2">
+                              {/* First Page */}
                               <button
                                 onClick={() => handlePageChange(1)}
                                 disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
+                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="First page"
                               >
-                                First
+                                <Icon name="ChevronsLeft" size={16} />
                               </button>
                               
+                              {/* Previous Page */}
                               <button
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={currentPage === 1}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === 1 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
+                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="Previous page"
                               >
-                                Previous
+                                <Icon name="ChevronLeft" size={16} />
                               </button>
                               
-                              <span className="px-3 py-1.5 text-sm font-medium text-text-primary">
-                                {currentPage} of {totalPages}
-                              </span>
+                              {/* Page Numbers */}
+                              <div className="flex gap-1 mx-2">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                  let pageNumber;
+                                  if (totalPages <= 5) {
+                                    pageNumber = i + 1;
+                                  } else if (currentPage <= 3) {
+                                    pageNumber = i + 1;
+                                  } else if (currentPage >= totalPages - 2) {
+                                    pageNumber = totalPages - 4 + i;
+                                  } else {
+                                    pageNumber = currentPage - 2 + i;
+                                  }
+                                  
+                                  return (
+                                    <button
+                                      key={pageNumber}
+                                      onClick={() => handlePageChange(pageNumber)}
+                                      className={`w-10 h-10 rounded-lg text-sm font-medium flex items-center justify-center transition-all duration-300 transform ${
+                                        currentPage === pageNumber
+                                          ? 'bg-primary text-white shadow-md scale-110'
+                                          : 'text-text-primary hover:bg-secondary-100 hover:scale-110'
+                                      }`}
+                                    >
+                                      {pageNumber}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               
+                              {/* Next Page */}
                               <button
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
+                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="Next page"
                               >
-                                Next
+                                <Icon name="ChevronRight" size={16} />
                               </button>
                               
+                              {/* Last Page */}
                               <button
                                 onClick={() => handlePageChange(totalPages)}
                                 disabled={currentPage === totalPages}
-                                className={`px-3 py-1.5 rounded text-sm font-medium ${
+                                className={`p-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                                   currentPage === totalPages 
-                                    ? 'text-text-secondary cursor-not-allowed' 
-                                    : 'text-text-primary hover:bg-secondary-50'
+                                    ? 'text-text-secondary cursor-not-allowed opacity-50' 
+                                    : 'text-text-primary hover:bg-secondary-100 transform hover:scale-110'
                                 }`}
+                                title="Last page"
                               >
-                                Last
+                                <Icon name="ChevronsRight" size={16} />
                               </button>
-                            </div>
-                            
-                            <div className="flex items-center space-x-1">
-                              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNumber;
-                                if (totalPages <= 5) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage <= 3) {
-                                  pageNumber = i + 1;
-                                } else if (currentPage >= totalPages - 2) {
-                                  pageNumber = totalPages - 4 + i;
-                                } else {
-                                  pageNumber = currentPage - 2 + i;
-                                }
-                                
-                                return (
-                                  <button
-                                    key={pageNumber}
-                                    onClick={() => handlePageChange(pageNumber)}
-                                    className={`w-8 h-8 rounded text-sm font-medium ${
-                                      currentPage === pageNumber
-                                        ? 'bg-primary text-white'
-                                        : 'text-text-primary hover:bg-secondary-50'
-                                    }`}
-                                  >
-                                    {pageNumber}
-                                  </button>
-                                );
-                              })}
                             </div>
                           </div>
                         )}
-                      </div>
+                      </>
                     )}
                   </div>
                 ) : (
-                  <div className="h-[calc(100vh-160px)]">
+                  // <div className="h-[70vh] rounded-xl overflow-hidden border border-border shadow-lg transition-all duration-500 transform">
+                  <div className="transition-all duration-500 transform">
                     <MapView
                       properties={filteredProperties}
                       selectedProperty={selectedProperty}
                       onPropertySelect={setSelectedProperty}
-                      isMobile={true}
                     />
                   </div>
                 )}
               </div>
             </div>
           </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
+        </main>
+        
+        <Footer />
+      </div>
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .animate-fadeInUp {
+          animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        /* Custom scrollbar for desktop list */
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e0 transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #cbd5e0;
+          border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: #a0aec0;
+        }
+
+        /* Smooth transitions for all interactive elements */
+        .transition-all {
+          transition-property: all;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Micro-interactions */
+        .hover-lift:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Staggered animation for grid items */
+        @keyframes staggerFadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .grid > div {
+          animation: staggerFadeInUp 0.6s ease-out forwards;
+          opacity: 0;
+        }
+
+        /* Progressive delay for grid items */
+        .grid > div:nth-child(1) { animation-delay: 0ms; }
+        .grid > div:nth-child(2) { animation-delay: 50ms; }
+        .grid > div:nth-child(3) { animation-delay: 100ms; }
+        .grid > div:nth-child(4) { animation-delay: 150ms; }
+        .grid > div:nth-child(5) { animation-delay: 200ms; }
+        .grid > div:nth-child(6) { animation-delay: 250ms; }
+        .grid > div:nth-child(7) { animation-delay: 300ms; }
+        .grid > div:nth-child(8) { animation-delay: 350ms; }
+        .grid > div:nth-child(9) { animation-delay: 400ms; }
+        .grid > div:nth-child(10) { animation-delay: 450ms; }
+        .grid > div:nth-child(11) { animation-delay: 500ms; }
+        .grid > div:nth-child(12) { animation-delay: 550ms; }
+
+        /* Loading shimmer effect */
+        @keyframes shimmer {
+          0% {
+            background-position: -200px 0;
+          }
+          100% {
+            background-position: calc(200px + 100%) 0;
+          }
+        }
+
+        .animate-pulse {
+          background: linear-gradient(90deg, #f0f0f0 25%, transparent 50%, #f0f0f0 75%);
+          background-size: 200px 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        /* Responsive grid adjustments */
+        @media (max-width: 768px) {
+          .grid > div {
+            animation-delay: 0ms !important;
+          }
+        }
+      `}</style>
     </>
   );
 };

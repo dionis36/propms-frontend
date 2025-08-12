@@ -237,7 +237,11 @@ const userMenuItems = [
                           {item.path ? (
                             <Link
                               to={item.path}
-                              className="flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
+                              className={`flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary transition-colors duration-200 ${
+                                item.path === '/user-profile-settings'
+                                  ? 'hover:text-primary-500 hover:bg-secondary-100'
+                                  : 'hover:text-text-primary hover:bg-secondary-100'
+                              }`}
                             >
                               <Icon name={item.icon} size={16} />
                               <span>{item.label}</span>
@@ -245,7 +249,11 @@ const userMenuItems = [
                           ) : (
                             <button
                               onClick={() => handleUserAction(item.action)}
-                              className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-secondary-100 transition-colors duration-200"
+                              className={`w-full flex items-center space-x-3 px-4 py-2 text-sm text-text-secondary transition-colors duration-200 ${
+                                item.action === 'logout'
+                                  ? 'hover:text-error-500 hover:bg-secondary-100'
+                                  : 'hover:text-text-primary hover:bg-secondary-100'
+                              }`}
                             >
                               <Icon name={item.icon} size={16} />
                               <span>{item.label}</span>
